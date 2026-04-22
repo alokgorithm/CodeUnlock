@@ -1,0 +1,28 @@
+# Node
+node_modules/
+backend/node_modules/
+dist/
+.npm/
+
+# Secrets & Env
+.env
+.dev.vars
+test_token.txt
+Questions.json
+
+# Cloudflare
+.wrangler/
+
+# Excluded per User Request
+PRD.MD
+Design/
+UI Design/
+UI Design.zip 
+
+# Android / Gradle
+.gradle/
+build/
+app/build/
+local.properties
+.idea/
+*.iml

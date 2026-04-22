@@ -1,0 +1,22 @@
+name = "codeunlock-api"
+main = "src/index.ts"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "e7836a9735e2bc16ef3d60da1309d3dd"
+
+[vars]
+SUPABASE_URL = "https://bbvgdhzjjoemzripehod.supabase.co"
+
+# Secrets (set via `wrangler secret put`):
+# SUPABASE_SERVICE_ROLE_KEY  ← already set
+# SUPABASE_ANON_KEY          ← needs to be set
+# UNLOCK_TOKEN_SECRET        ← already set
+
+# Rate limiting KV namespace
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "a4e6b700aabd4457bf1cbc62664ccc55"
+
+# Daily sync cron — PRD §8.1: runs at 00:00 UTC every day
+[triggers]
+crons = ["0 0 * * *"]
