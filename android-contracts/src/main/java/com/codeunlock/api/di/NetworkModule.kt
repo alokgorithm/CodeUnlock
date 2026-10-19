@@ -1,5 +1,7 @@
 package com.codeunlock.api.di
 
+import com.codeunlock.api.auth.AuthFailureHandler
+import com.codeunlock.api.auth.TokenProvider
 import com.codeunlock.api.interceptor.AuthInterceptor
 import com.codeunlock.api.interceptor.ErrorInterceptor
 import com.codeunlock.api.service.CodeUnlockApiService
@@ -22,18 +24,18 @@ import javax.inject.Singleton
  *   - Retrofit instance (base URL: codeunlock-api.arka-cmd.workers.dev)
  *   - CodeUnlockApiService (Retrofit interface)
  *
- * NOTE: You must provide a `tokenProvider` function that returns the current
- * Supabase access token. Replace the placeholder below with your actual
- * token source (e.g., from Supabase session or encrypted DataStore).
+ * The app module supplies:
+ *   - [TokenProvider] for the current access token
+ *   - [AuthFailureHandler] for unauthorized/session-expired handling
  */
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
     private const val BASE_URL = "https://codeunlock-api.arka-cmd.workers.dev/"
-    private const val CONNECT_TIMEOUT = 15L
-    private const val READ_TIMEOUT = 30L
-    private const val WRITE_TIMEOUT = 30L
+    private const val CONNECT_TIMEOUT = 8L
+    private const val READ_TIMEOUT = 8L
+    private const val WRITE_TIMEOUT = 8L
 
     @Provides
     @Singleton
@@ -46,24 +48,20 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideAuthInterceptor(
-        // TODO: Inject your token provider here.
-        // Example: sessionManager: SessionManager
+        tokenProvider: TokenProvider
     ): AuthInterceptor {
         return AuthInterceptor {
-            // TODO: Replace with actual token retrieval:
-            // sessionManager.getAccessToken()
-            null
+            tokenProvider.getAccessToken()
         }
     }
 
     @Provides
     @Singleton
-    fun provideErrorInterceptor(): ErrorInterceptor {
+    fun provideErrorInterceptor(
+        authFailureHandler: AuthFailureHandler
+    ): ErrorInterceptor {
         return ErrorInterceptor(
-            onAuthFailure = {
-                // TODO: Handle auth failure (e.g., clear session, navigate to login)
-                // Example: sessionManager.clearSession()
-            }
+            onAuthFailure = authFailureHandler::onAuthFailure
         )
     }
 

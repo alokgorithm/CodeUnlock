@@ -93,6 +93,8 @@ export interface UpdateSettingsRequest {
 }
 
 // ---- Wellbeing ----
+// FIX: Added missing blocked_attempt_count, unlock_count, longest_session_app
+// per PRD §6.5.1 "Digital Wellbeing" sync fields and §8.3 Device Wellbeing Push
 export interface WellbeingSyncRequest {
   date: string;
   apps: {
@@ -104,6 +106,39 @@ export interface WellbeingSyncRequest {
   }[];
   total_screen_time_minutes: number;
   pickup_count: number;
+  // NEW — required for wellbeing_daily.blocked_attempt_count
+  blocked_attempt_count?: number;
+  // NEW — required for wellbeing_daily.unlock_count
+  unlock_count?: number;
+  // NEW — required for wellbeing_daily.longest_session_app
+  longest_session_app?: string;
+}
+
+// ---- Profile ----
+// NEW: Profile update request (PRD §11)
+export interface UpdateProfileRequest {
+  username?: string;
+  avatar_emoji?: string;
+  college?: string;
+  leetcode_username?: string;
+  codeforces_handle?: string;
+}
+
+// ---- Daily Progress ----
+// NEW: Response shape for GET /api/daily-progress (PRD §10 Dashboard)
+export interface DailyProgressResponse {
+  date: string;
+  problems_solved: number;
+  daily_target: number;
+  target_met: boolean;
+  unlock_minutes_earned: number;
+  unlock_minutes_used: number;
+  unlock_minutes_remaining: number;
+  free_unlock_used: boolean;
+  emergency_unlock_used: boolean;
+  bonus_time_earned: boolean;
+  total_screen_time_minutes: number;
+  restricted_app_time_minutes: number;
 }
 
 // ---- Stats ----

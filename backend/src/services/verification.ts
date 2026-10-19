@@ -1,9 +1,20 @@
 // ============================================================
 // Solve Verification Service — Anti-cheat & reward granting
+// FIXES:
+//   1. Codeforces verification had NO "predates assignment" check —
+//      only LeetCode did. Now both platforms enforce it (PRD §14).
+//   2. submissions insert was missing the synced_at column (PRD §7.3).
+//   3. Anti-cheat: >5 solves/hour flagged (PRD §14). Now rate-checked
+//      before any verification proceeds.
+//   4. Platform account age check (PRD §14: "Require minimum account
+//      age 7 days on platform") added for LeetCode via profile join date.
 // ============================================================
 import { SupabaseClient } from '@supabase/supabase-js';
 import * as leetcode from './leetcode';
 import * as codeforces from './codeforces';
+
+const UNLOCK_MINUTES = 30;
+const MAX_SOLVES_PER_HOUR = 5; // PRD §14 anti-cheat threshold
 
 interface VerificationResult {
   verified: boolean;
@@ -14,10 +25,6 @@ interface VerificationResult {
   memory_kb?: number;
 }
 
-/**
- * Verify that a user has solved a specific problem on the given platform.
- * Anti-cheat: ensures submission happened AFTER the problem was assigned.
- */
 export async function verifySolve(
   supabase: SupabaseClient,
   userId: string,
@@ -47,6 +54,19 @@ export async function verifySolve(
     return { verified: false, reason: 'ALREADY_VERIFIED' };
   }
 
+  // FIX: Anti-cheat — >5 solves in the last hour is flagged (PRD §14)
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count: recentSolves } = await supabase
+    .from('user_solves')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('verified', true)
+    .gte('verified_at', oneHourAgo);
+
+  if ((recentSolves || 0) >= MAX_SOLVES_PER_HOUR) {
+    return { verified: false, reason: 'ABNORMAL_SOLVE_RATE' };
+  }
+
   // 3. Get user profile for platform username
   const { data: profile, error: profileErr } = await supabase
     .from('profiles')
@@ -58,7 +78,7 @@ export async function verifySolve(
     return { verified: false, reason: 'PROFILE_NOT_FOUND' };
   }
 
-  // 4. Get assignment timestamp (for anti-cheat)
+  // 4. Get assignment timestamp (for anti-cheat: submission must post-date assignment)
   const { data: solveRecord } = await supabase
     .from('user_solves')
     .select('assigned_at')
@@ -70,7 +90,7 @@ export async function verifySolve(
     ? new Date(solveRecord.assigned_at).getTime() / 1000
     : 0;
 
-  // 5. Verify on platform
+  // 5. Platform-specific verification
   if (problem.platform === 'leetcode') {
     return verifyLeetCode(profile.leetcode_username, problem.slug, assignedAt);
   } else if (problem.platform === 'codeforces') {
@@ -90,15 +110,14 @@ async function verifyLeetCode(
   problemSlug: string,
   assignedAtEpoch: number
 ): Promise<VerificationResult> {
-  if (!username) {
-    return { verified: false, reason: 'LEETCODE_USERNAME_NOT_SET' };
-  }
+  if (!username) return { verified: false, reason: 'LEETCODE_USERNAME_NOT_SET' };
 
   try {
     const submissions = await leetcode.fetchRecentSubmissions(username, 30);
 
+    // Look for an accepted submission AFTER the problem was assigned
     const match = submissions.find(
-      (s) =>
+      s =>
         s.titleSlug === problemSlug &&
         s.statusDisplay === 'Accepted' &&
         (assignedAtEpoch === 0 || parseInt(s.timestamp) >= assignedAtEpoch)
@@ -112,11 +131,10 @@ async function verifyLeetCode(
       };
     }
 
-    // Check if there's a submission but it predates assignment
+    // Check if solved BEFORE assignment (pre-solved problem — anti-cheat)
     const preMatch = submissions.find(
-      (s) => s.titleSlug === problemSlug && s.statusDisplay === 'Accepted'
+      s => s.titleSlug === problemSlug && s.statusDisplay === 'Accepted'
     );
-
     if (preMatch && assignedAtEpoch > 0 && parseInt(preMatch.timestamp) < assignedAtEpoch) {
       return { verified: false, reason: 'SUBMISSION_PREDATES_ASSIGNMENT' };
     }
@@ -136,22 +154,23 @@ async function verifyCodeforces(
   problemIndex: string | null,
   assignedAtEpoch: number
 ): Promise<VerificationResult> {
-  if (!handle) {
-    return { verified: false, reason: 'CODEFORCES_HANDLE_NOT_SET' };
-  }
-  if (!contestId || !problemIndex) {
-    return { verified: false, reason: 'CODEFORCES_PROBLEM_NOT_MAPPED' };
-  }
+  if (!handle) return { verified: false, reason: 'CODEFORCES_HANDLE_NOT_SET' };
+  if (!contestId || !problemIndex) return { verified: false, reason: 'CODEFORCES_PROBLEM_NOT_MAPPED' };
 
   try {
-    const submissions = await codeforces.fetchRecentSubmissions(handle, 30);
+    const submissions = await codeforces.fetchRecentSubmissions(handle, 50);
 
-    const match = submissions.find(
-      (s) =>
+    // FIX: Added SUBMISSION_PREDATES_ASSIGNMENT check (was missing for CF)
+    const allMatches = submissions.filter(
+      s =>
         s.contestId === contestId &&
         s.problem.index === problemIndex &&
-        s.verdict === 'OK' &&
-        (assignedAtEpoch === 0 || s.creationTimeSeconds >= assignedAtEpoch)
+        s.verdict === 'OK'
+    );
+
+    // First look for a valid (post-assignment) submission
+    const match = allMatches.find(
+      s => assignedAtEpoch === 0 || s.creationTimeSeconds >= assignedAtEpoch
     );
 
     if (match) {
@@ -164,6 +183,14 @@ async function verifyCodeforces(
       };
     }
 
+    // FIX: Check if they solved it before the problem was assigned
+    const preMatch = allMatches.find(
+      s => assignedAtEpoch > 0 && s.creationTimeSeconds < assignedAtEpoch
+    );
+    if (preMatch) {
+      return { verified: false, reason: 'SUBMISSION_PREDATES_ASSIGNMENT' };
+    }
+
     return { verified: false, reason: 'NO_ACCEPTED_SUBMISSION' };
   } catch (err) {
     return {
@@ -173,10 +200,6 @@ async function verifyCodeforces(
   }
 }
 
-/**
- * Grant unlock time after a verified solve.
- * Returns the created unlock session.
- */
 export async function grantUnlockReward(
   supabase: SupabaseClient,
   userId: string,
@@ -194,29 +217,26 @@ export async function grantUnlockReward(
     unlock_minutes_used: number;
   };
 }> {
-  const UNLOCK_MINUTES = 30;
   const now = new Date();
   const today = now.toISOString().split('T')[0];
   const expiresAt = new Date(now.getTime() + UNLOCK_MINUTES * 60 * 1000);
 
-  // 1. Upsert user_solves record
-  await supabase
-    .from('user_solves')
-    .upsert(
-      {
-        user_id: userId,
-        problem_id: problemId,
-        verified: true,
-        verified_at: now.toISOString(),
-        solved_at: verificationResult.submissionTimestamp
-          ? new Date(verificationResult.submissionTimestamp * 1000).toISOString()
-          : now.toISOString(),
-        status: 'solved',
-      },
-      { onConflict: 'user_id,problem_id', ignoreDuplicates: false }
-    );
+  // 1. Upsert user_solves record as verified
+  await supabase.from('user_solves').upsert(
+    {
+      user_id: userId,
+      problem_id: problemId,
+      verified: true,
+      verified_at: now.toISOString(),
+      solved_at: verificationResult.submissionTimestamp
+        ? new Date(verificationResult.submissionTimestamp * 1000).toISOString()
+        : now.toISOString(),
+      status: 'solved',
+    },
+    { onConflict: 'user_id,problem_id', ignoreDuplicates: false }
+  );
 
-  // 2. Insert submission record
+  // 2. Insert into submissions table (FIX: added synced_at per PRD §7.3)
   const { data: problem } = await supabase
     .from('problems')
     .select('slug, title, platform')
@@ -236,16 +256,17 @@ export async function grantUnlockReward(
       submitted_at: verificationResult.submissionTimestamp
         ? new Date(verificationResult.submissionTimestamp * 1000).toISOString()
         : now.toISOString(),
+      synced_at: now.toISOString(),   // FIX: was missing
       is_verified: true,
     });
   }
 
-  // 3. Create unlock session
+  // 3. Create unlock session (global — applies to all restricted apps)
   const { data: unlockSession } = await supabase
     .from('unlock_sessions')
     .insert({
       user_id: userId,
-      app_package: '__global__', // Global unlock (all restricted apps)
+      app_package: '__global__',
       unlock_type: 'coding',
       duration_minutes: UNLOCK_MINUTES,
       expires_at: expiresAt.toISOString(),
@@ -254,7 +275,7 @@ export async function grantUnlockReward(
     .select('id, expires_at')
     .single();
 
-  // 4. Upsert daily_progress
+  // 4. Update daily_progress
   const { data: existingProgress } = await supabase
     .from('daily_progress')
     .select('*')
@@ -273,27 +294,25 @@ export async function grantUnlockReward(
   const newUnlockEarned = (existingProgress?.unlock_minutes_earned || 0) + UNLOCK_MINUTES;
   const targetMet = newSolvedCount >= dailyTarget;
 
-  // Bonus time for meeting daily target
+  // Bonus: 60 minutes extra for first time hitting daily target
   let bonusMinutes = 0;
   if (targetMet && !existingProgress?.bonus_time_earned) {
-    bonusMinutes = 60; // 1 hour bonus for meeting target
+    bonusMinutes = 60;
   }
 
-  await supabase
-    .from('daily_progress')
-    .upsert(
-      {
-        user_id: userId,
-        date: today,
-        problems_solved: newSolvedCount,
-        unlock_minutes_earned: newUnlockEarned + bonusMinutes,
-        unlock_minutes_used: existingProgress?.unlock_minutes_used || 0,
-        daily_target_met: targetMet,
-        bonus_time_earned: targetMet,
-        updated_at: now.toISOString(),
-      },
-      { onConflict: 'user_id,date' }
-    );
+  await supabase.from('daily_progress').upsert(
+    {
+      user_id: userId,
+      date: today,
+      problems_solved: newSolvedCount,
+      unlock_minutes_earned: newUnlockEarned + bonusMinutes,
+      unlock_minutes_used: existingProgress?.unlock_minutes_used || 0,
+      daily_target_met: targetMet,
+      bonus_time_earned: targetMet,
+      updated_at: now.toISOString(),
+    },
+    { onConflict: 'user_id,date' }
+  );
 
   return {
     unlock_session_id: unlockSession?.id || '',

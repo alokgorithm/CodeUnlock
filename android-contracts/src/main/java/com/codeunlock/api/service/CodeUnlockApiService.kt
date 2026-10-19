@@ -23,6 +23,19 @@ interface CodeUnlockApiService {
     @GET("api/health")
     suspend fun health(): Response<ApiResponse<HealthResponse>>
 
+    @POST("api/auth/setup")
+    suspend fun setupAuth(
+        @Body request: AuthSetupRequest
+    ): Response<ApiResponse<AuthSetupResponse>>
+
+    @GET("api/profile")
+    suspend fun getProfile(): Response<ApiResponse<ProfileDto>>
+
+    @PUT("api/profile")
+    suspend fun updateProfile(
+        @Body request: UpdateProfileRequest
+    ): Response<ApiResponse<UpdateProfileResponse>>
+
     // ============================================================
     // Problems
     // ============================================================
@@ -70,6 +83,14 @@ interface CodeUnlockApiService {
     @GET("api/unlock/active")
     suspend fun getActiveUnlocks(): Response<ApiResponse<ActiveUnlocksResponse>>
 
+    @GET("api/daily-progress")
+    suspend fun getDailyProgress(): Response<ApiResponse<DailyProgressFullDto>>
+
+    @POST("api/daily-progress/consume")
+    suspend fun consumeUnlockTime(
+        @Body request: ConsumeUnlockTimeRequest
+    ): Response<ApiResponse<ConsumeUnlockTimeResponse>>
+
     /**
      * Request emergency unlock (30 min, once per day).
      * Returns 429 EMERGENCY_ALREADY_USED if already used today.
@@ -107,6 +128,9 @@ interface CodeUnlockApiService {
     /** Get wellbeing stats (today + 7-day trend). */
     @GET("api/stats/wellbeing")
     suspend fun getWellbeingStats(): Response<ApiResponse<WellbeingStatsDto>>
+
+    @GET("api/badges")
+    suspend fun getBadges(): Response<ApiResponse<BadgesResponse>>
 
     // ============================================================
     // Settings
@@ -171,6 +195,9 @@ interface CodeUnlockApiService {
         @Body request: CreateClassroomRequest
     ): Response<ApiResponse<ClassroomDto>>
 
+    @GET("api/classrooms")
+    suspend fun listClassrooms(): Response<ApiResponse<ClassroomsListResponse>>
+
     /** Join a classroom by its 6-char code. */
     @POST("api/classrooms/join")
     suspend fun joinClassroom(
@@ -184,6 +211,9 @@ interface CodeUnlockApiService {
     /** List all accepted friends. */
     @GET("api/friends")
     suspend fun listFriends(): Response<ApiResponse<FriendsListResponse>>
+
+    @GET("api/friends/pending")
+    suspend fun listPendingFriends(): Response<ApiResponse<PendingFriendsResponse>>
 
     /** Send a friend request by username. */
     @POST("api/friends/request")

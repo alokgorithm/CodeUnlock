@@ -23,6 +23,15 @@ class CodeUnlockRepository @Inject constructor(
     // Problems
     // ============================================================
 
+    suspend fun setupAuth(username: String? = null, avatarEmoji: String? = null): Result<AuthSetupResponse> =
+        safeApiCall { api.setupAuth(AuthSetupRequest(username, avatarEmoji)) }
+
+    suspend fun getProfile(): Result<ProfileDto> =
+        safeApiCall { api.getProfile() }
+
+    suspend fun updateProfile(request: UpdateProfileRequest): Result<UpdateProfileResponse> =
+        safeApiCall { api.updateProfile(request) }
+
     suspend fun getNextProblem(): Result<NextProblemResponse> =
         safeApiCall { api.getNextProblem() }
 
@@ -47,6 +56,12 @@ class CodeUnlockRepository @Inject constructor(
     suspend fun getActiveUnlocks(): Result<ActiveUnlocksResponse> =
         safeApiCall { api.getActiveUnlocks() }
 
+    suspend fun getDailyProgress(): Result<DailyProgressFullDto> =
+        safeApiCall { api.getDailyProgress() }
+
+    suspend fun consumeUnlockTime(minutesUsed: Int, appPackage: String? = null): Result<ConsumeUnlockTimeResponse> =
+        safeApiCall { api.consumeUnlockTime(ConsumeUnlockTimeRequest(minutesUsed, appPackage)) }
+
     suspend fun emergencyUnlock(appPackage: String? = null): Result<EmergencyUnlockResponse> =
         safeApiCall { api.emergencyUnlock(EmergencyUnlockRequest(appPackage)) }
 
@@ -68,6 +83,9 @@ class CodeUnlockRepository @Inject constructor(
 
     suspend fun getWellbeingStats(): Result<WellbeingStatsDto> =
         safeApiCall { api.getWellbeingStats() }
+
+    suspend fun getBadges(): Result<BadgesResponse> =
+        safeApiCall { api.getBadges() }
 
     // ============================================================
     // Settings
@@ -109,11 +127,17 @@ class CodeUnlockRepository @Inject constructor(
     suspend fun createClassroom(name: String): Result<ClassroomDto> =
         safeApiCall { api.createClassroom(CreateClassroomRequest(name)) }
 
+    suspend fun listClassrooms(): Result<ClassroomsListResponse> =
+        safeApiCall { api.listClassrooms() }
+
     suspend fun joinClassroom(code: String): Result<JoinClassroomResponse> =
         safeApiCall { api.joinClassroom(JoinClassroomRequest(code)) }
 
     suspend fun listFriends(): Result<FriendsListResponse> =
         safeApiCall { api.listFriends() }
+
+    suspend fun listPendingFriends(): Result<PendingFriendsResponse> =
+        safeApiCall { api.listPendingFriends() }
 
     suspend fun sendFriendRequest(username: String): Result<MessageResponse> =
         safeApiCall { api.sendFriendRequest(FriendRequestDto(username)) }

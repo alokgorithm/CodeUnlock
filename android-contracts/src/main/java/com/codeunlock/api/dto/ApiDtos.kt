@@ -221,7 +221,10 @@ data class WellbeingSyncRequest(
     @SerializedName("date") val date: String,
     @SerializedName("apps") val apps: List<AppUsageEntry>,
     @SerializedName("total_screen_time_minutes") val totalScreenTimeMinutes: Int,
-    @SerializedName("pickup_count") val pickupCount: Int
+    @SerializedName("pickup_count") val pickupCount: Int,
+    @SerializedName("blocked_attempt_count") val blockedAttemptCount: Int = 0,
+    @SerializedName("unlock_count") val unlockCount: Int = 0,
+    @SerializedName("longest_session_app") val longestSessionApp: String? = null
 )
 
 data class AppUsageEntry(
@@ -336,6 +339,146 @@ data class SearchResultDto(
 
 data class SearchResponse(
     @SerializedName("results") val results: List<SearchResultDto>
+)
+
+// ============================================================
+// Profile / Onboarding / Daily Progress DTOs
+// ============================================================
+
+data class DailyProgressFullDto(
+    @SerializedName("date") val date: String,
+    @SerializedName("problems_solved") val problemsSolved: Int,
+    @SerializedName("daily_target") val dailyTarget: Int,
+    @SerializedName("target_met") val targetMet: Boolean,
+    @SerializedName("unlock_minutes_earned") val unlockMinutesEarned: Int,
+    @SerializedName("unlock_minutes_used") val unlockMinutesUsed: Int,
+    @SerializedName("unlock_minutes_remaining") val unlockMinutesRemaining: Int,
+    @SerializedName("free_unlock_used") val freeUnlockUsed: Boolean,
+    @SerializedName("emergency_unlock_used") val emergencyUnlockUsed: Boolean,
+    @SerializedName("bonus_time_earned") val bonusTimeEarned: Boolean,
+    @SerializedName("total_screen_time_minutes") val totalScreenTimeMinutes: Int,
+    @SerializedName("restricted_app_time_minutes") val restrictedAppTimeMinutes: Int,
+    @SerializedName("usage_mode") val usageMode: String,
+    @SerializedName("active_unlock_sessions") val activeUnlockSessions: List<UnlockSessionDto>
+)
+
+data class ConsumeUnlockTimeRequest(
+    @SerializedName("minutes_used") val minutesUsed: Int,
+    @SerializedName("app_package") val appPackage: String? = null
+)
+
+data class ConsumeUnlockTimeResponse(
+    @SerializedName("ok") val ok: Boolean,
+    @SerializedName("unlock_minutes_used") val unlockMinutesUsed: Int
+)
+
+data class ProfileRankingDto(
+    @SerializedName("global_rank") val globalRank: Int,
+    @SerializedName("college_rank") val collegeRank: Int?,
+    @SerializedName("ranking_score") val rankingScore: Double,
+    @SerializedName("total_verified_solves") val totalVerifiedSolves: Int,
+    @SerializedName("consistency_streak_days") val consistencyStreakDays: Int
+)
+
+data class ProfileBadgeDto(
+    @SerializedName("badge_id") val badgeId: Int,
+    @SerializedName("name") val name: String,
+    @SerializedName("category") val category: String,
+    @SerializedName("icon_emoji") val iconEmoji: String,
+    @SerializedName("earned_at") val earnedAt: String?,
+    @SerializedName("progress") val progress: Double
+)
+
+data class ProfileStatsSummaryDto(
+    @SerializedName("total_verified_solves") val totalVerifiedSolves: Int,
+    @SerializedName("current_streak") val currentStreak: Int,
+    @SerializedName("wellbeing_score_30d_avg") val wellbeingScore30dAvg: Double?,
+    @SerializedName("screen_time_reduction_pct") val screenTimeReductionPct: Int
+)
+
+data class ProfileClassroomDto(
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("code") val code: String
+)
+
+data class ProfileDto(
+    @SerializedName("id") val id: String,
+    @SerializedName("username") val username: String,
+    @SerializedName("email") val email: String,
+    @SerializedName("avatar_emoji") val avatarEmoji: String,
+    @SerializedName("college") val college: String?,
+    @SerializedName("leetcode_username") val leetcodeUsername: String?,
+    @SerializedName("codeforces_handle") val codeforcesHandle: String?,
+    @SerializedName("last_sync_at") val lastSyncAt: String?,
+    @SerializedName("ranking") val ranking: ProfileRankingDto?,
+    @SerializedName("badges") val badges: List<ProfileBadgeDto>,
+    @SerializedName("stats_summary") val statsSummary: ProfileStatsSummaryDto,
+    @SerializedName("classrooms") val classrooms: List<ProfileClassroomDto>
+)
+
+data class UpdateProfileRequest(
+    @SerializedName("username") val username: String? = null,
+    @SerializedName("avatar_emoji") val avatarEmoji: String? = null,
+    @SerializedName("college") val college: String? = null,
+    @SerializedName("leetcode_username") val leetcodeUsername: String? = null,
+    @SerializedName("codeforces_handle") val codeforcesHandle: String? = null
+)
+
+data class UpdateProfileResponse(
+    @SerializedName("updated") val updated: Boolean,
+    @SerializedName("message") val message: String
+)
+
+data class AuthSetupRequest(
+    @SerializedName("username") val username: String? = null,
+    @SerializedName("avatar_emoji") val avatarEmoji: String? = null
+)
+
+data class AuthSetupResponse(
+    @SerializedName("setup_complete") val setupComplete: Boolean,
+    @SerializedName("already_setup") val alreadySetup: Boolean? = null,
+    @SerializedName("username") val username: String,
+    @SerializedName("message") val message: String
+)
+
+data class BadgeProgressDto(
+    @SerializedName("badge_id") val badgeId: Int,
+    @SerializedName("name") val name: String,
+    @SerializedName("category") val category: String,
+    @SerializedName("icon_emoji") val iconEmoji: String,
+    @SerializedName("description") val description: String,
+    @SerializedName("progress") val progress: Double,
+    @SerializedName("earned_at") val earnedAt: String?
+)
+
+data class BadgesResponse(
+    @SerializedName("badges") val badges: List<BadgeProgressDto>
+)
+
+data class ClassroomListItem(
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("code") val code: String,
+    @SerializedName("is_creator") val isCreator: Boolean,
+    @SerializedName("member_count") val memberCount: Int,
+    @SerializedName("joined_at") val joinedAt: String
+)
+
+data class ClassroomsListResponse(
+    @SerializedName("classrooms") val classrooms: List<ClassroomListItem>
+)
+
+data class PendingFriendDto(
+    @SerializedName("requester_id") val requesterId: String? = null,
+    @SerializedName("addressee_id") val addresseeId: String? = null,
+    @SerializedName("username") val username: String,
+    @SerializedName("avatar_emoji") val avatarEmoji: String? = null
+)
+
+data class PendingFriendsResponse(
+    @SerializedName("incoming") val incoming: List<PendingFriendDto>,
+    @SerializedName("outgoing") val outgoing: List<PendingFriendDto>
 )
 
 // ============================================================

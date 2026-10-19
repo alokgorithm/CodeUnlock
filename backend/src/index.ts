@@ -1,16 +1,20 @@
 // ============================================================
 // CodeUnlock API — Main Router (Cloudflare Worker Entry Point)
+// v2.1 — wires all previously missing routes
 // ============================================================
 import { AutoRouter, cors, IRequest } from 'itty-router';
-import { Env, AuthUser, VerifySolveRequest, UpdateSettingsRequest, WellbeingSyncRequest } from './types';
+import {
+  Env, AuthUser,
+  VerifySolveRequest, UpdateSettingsRequest,
+  WellbeingSyncRequest, UpdateProfileRequest,
+} from './types';
 import { authenticateRequest } from './middleware/auth';
 import { checkVerifyCooldown, checkApiRateLimit } from './middleware/rateLimit';
-import { withCors } from './middleware/errorHandler';
 import { createClient } from '@supabase/supabase-js';
-import { createServiceClient, createUserClient } from './utils/supabase';
+import { createUserClient } from './utils/supabase';
 import * as response from './utils/response';
 
-// Route handlers
+// ---- Route handlers ----
 import { handleNextProblem, handleListProblems } from './routes/problems';
 import { handleVerifySolve } from './routes/verify';
 import { handleGetSettings, handleUpdateSettings } from './routes/settings';
@@ -19,10 +23,15 @@ import { handleWellbeingSync, handleSyncTrigger } from './routes/sync';
 import { handleGlobalRankings, handleCollegeRankings, handleClassroomRankings } from './routes/rankings';
 import { handleGetActiveUnlocks, handleEmergencyUnlock, handleFreeUnlock } from './routes/unlock';
 import {
-  handleCreateClassroom, handleJoinClassroom,
-  handleListFriends, handleFriendRequest, handleAcceptFriend,
-  handleSearch
+  handleListClassrooms, handleCreateClassroom, handleJoinClassroom,
+  handleListFriends, handleListPendingFriends, handleFriendRequest, handleAcceptFriend,
+  handleSearch,
 } from './routes/social';
+
+// NEW routes
+import { handleGetProfile, handleUpdateProfile, handleAuthSetup } from './routes/profile';
+import { handleGetDailyProgress, handleConsumeUnlockTime } from './routes/daily';
+import { handleGetBadges } from './routes/badges';
 
 const { preflight, corsify } = cors({ origin: '*' });
 
@@ -31,10 +40,11 @@ const router = AutoRouter<IRequest, [Env]>({
   finally: [(r: Response) => corsify(r)],
 });
 
-// ---- Helper: Authenticate + Rate Limit ----
+// ---- Auth helper ----
 async function authGuard(request: Request, env: Env): Promise<{ user: AuthUser; token: string } | Response> {
   const authHeader = request.headers.get('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (!token) return response.unauthorized();
 
   const user = await authenticateRequest(request, env);
   if (!user) return response.unauthorized();
@@ -47,10 +57,59 @@ async function authGuard(request: Request, env: Env): Promise<{ user: AuthUser; 
   return { user, token };
 }
 
-// ---- Health Check ----
-router.get('/api/health', () => response.success({ status: 'ok', version: '2.0.0' }));
+// ============================================================
+// Health
+// ============================================================
+router.get('/api/health', () => response.success({ status: 'ok', version: '2.1.0' }));
 
-// ---- Problems ----
+// ============================================================
+// Auth / Onboarding — NEW
+// POST /api/auth/setup  — first-login profile + settings + rankings init (PRD §4)
+// ============================================================
+router.post('/api/auth/setup', async (request: IRequest, env: Env) => {
+  const auth = await authGuard(request as unknown as Request, env);
+  if (auth instanceof Response) return auth;
+  const body = await (request as unknown as Request).json().catch(() => ({})) as { username?: string; avatar_emoji?: string };
+  return handleAuthSetup(createUserClient(env, auth.token), auth.user, body);
+});
+
+// ============================================================
+// Profile — NEW (GET + PUT /api/profile)
+// ============================================================
+router.get('/api/profile', async (request: IRequest, env: Env) => {
+  const auth = await authGuard(request as unknown as Request, env);
+  if (auth instanceof Response) return auth;
+  return handleGetProfile(createUserClient(env, auth.token), auth.user);
+});
+
+router.put('/api/profile', async (request: IRequest, env: Env) => {
+  const auth = await authGuard(request as unknown as Request, env);
+  if (auth instanceof Response) return auth;
+  const body = await (request as unknown as Request).json() as UpdateProfileRequest;
+  return handleUpdateProfile(createUserClient(env, auth.token), auth.user, body);
+});
+
+// ============================================================
+// Daily Progress — NEW
+// GET  /api/daily-progress          (PRD §10 Dashboard KPI row)
+// POST /api/daily-progress/consume  (unlock time usage tracking)
+// ============================================================
+router.get('/api/daily-progress', async (request: IRequest, env: Env) => {
+  const auth = await authGuard(request as unknown as Request, env);
+  if (auth instanceof Response) return auth;
+  return handleGetDailyProgress(createUserClient(env, auth.token), auth.user);
+});
+
+router.post('/api/daily-progress/consume', async (request: IRequest, env: Env) => {
+  const auth = await authGuard(request as unknown as Request, env);
+  if (auth instanceof Response) return auth;
+  const body = await (request as unknown as Request).json().catch(() => ({})) as { minutes_used: number; app_package?: string };
+  return handleConsumeUnlockTime(createUserClient(env, auth.token), auth.user, body);
+});
+
+// ============================================================
+// Problems
+// ============================================================
 router.get('/api/next-problem', async (request: IRequest, env: Env) => {
   const auth = await authGuard(request as unknown as Request, env);
   if (auth instanceof Response) return auth;
@@ -63,12 +122,13 @@ router.get('/api/problems', async (request: IRequest, env: Env) => {
   return handleListProblems(createUserClient(env, auth.token), auth.user, new URL(request.url).searchParams);
 });
 
-// ---- Verification ----
+// ============================================================
+// Verification
+// ============================================================
 router.post('/api/verify-solve', async (request: IRequest, env: Env) => {
   const auth = await authGuard(request as unknown as Request, env);
   if (auth instanceof Response) return auth;
 
-  // Verify-specific cooldown (30s)
   const cooldown = await checkVerifyCooldown(auth.user.id, env);
   if (!cooldown.allowed) {
     return response.tooManyRequests(`Cooldown active. Retry after ${cooldown.retryAfterSeconds}s`);
@@ -78,7 +138,9 @@ router.post('/api/verify-solve', async (request: IRequest, env: Env) => {
   return handleVerifySolve(createUserClient(env, auth.token), auth.user, body);
 });
 
-// ---- Unlock ----
+// ============================================================
+// Unlock
+// ============================================================
 router.get('/api/unlock/active', async (request: IRequest, env: Env) => {
   const auth = await authGuard(request as unknown as Request, env);
   if (auth instanceof Response) return auth;
@@ -99,7 +161,9 @@ router.post('/api/unlock/free', async (request: IRequest, env: Env) => {
   return handleFreeUnlock(createUserClient(env, auth.token), auth.user, body);
 });
 
-// ---- Stats ----
+// ============================================================
+// Stats
+// ============================================================
 router.get('/api/stats/leetcode', async (request: IRequest, env: Env) => {
   const auth = await authGuard(request as unknown as Request, env);
   if (auth instanceof Response) return auth;
@@ -124,7 +188,15 @@ router.get('/api/stats/wellbeing', async (request: IRequest, env: Env) => {
   return handleWellbeingStats(createUserClient(env, auth.token), auth.user);
 });
 
-// ---- Settings ----
+router.get('/api/badges', async (request: IRequest, env: Env) => {
+  const auth = await authGuard(request as unknown as Request, env);
+  if (auth instanceof Response) return auth;
+  return handleGetBadges(createUserClient(env, auth.token), auth.user);
+});
+
+// ============================================================
+// Settings
+// ============================================================
 router.get('/api/settings', async (request: IRequest, env: Env) => {
   const auth = await authGuard(request as unknown as Request, env);
   if (auth instanceof Response) return auth;
@@ -138,7 +210,9 @@ router.put('/api/settings', async (request: IRequest, env: Env) => {
   return handleUpdateSettings(createUserClient(env, auth.token), auth.user, body);
 });
 
-// ---- Sync ----
+// ============================================================
+// Sync
+// ============================================================
 router.post('/api/wellbeing/sync', async (request: IRequest, env: Env) => {
   const auth = await authGuard(request as unknown as Request, env);
   if (auth instanceof Response) return auth;
@@ -152,7 +226,9 @@ router.post('/api/sync/trigger', async (request: IRequest, env: Env) => {
   return handleSyncTrigger(createUserClient(env, auth.token), auth.user);
 });
 
-// ---- Rankings ----
+// ============================================================
+// Rankings
+// ============================================================
 router.get('/api/rankings/global', async (request: IRequest, env: Env) => {
   const auth = await authGuard(request as unknown as Request, env);
   if (auth instanceof Response) return auth;
@@ -171,7 +247,17 @@ router.get('/api/rankings/classroom/:id', async (request: IRequest, env: Env) =>
   return handleClassroomRankings(createUserClient(env, auth.token), auth.user, request.params.id);
 });
 
-// ---- Social ----
+// ============================================================
+// Social — Classrooms
+// ============================================================
+
+// NEW: list classrooms the user belongs to
+router.get('/api/classrooms', async (request: IRequest, env: Env) => {
+  const auth = await authGuard(request as unknown as Request, env);
+  if (auth instanceof Response) return auth;
+  return handleListClassrooms(createUserClient(env, auth.token), auth.user);
+});
+
 router.post('/api/classrooms', async (request: IRequest, env: Env) => {
   const auth = await authGuard(request as unknown as Request, env);
   if (auth instanceof Response) return auth;
@@ -186,10 +272,20 @@ router.post('/api/classrooms/join', async (request: IRequest, env: Env) => {
   return handleJoinClassroom(createUserClient(env, auth.token), auth.user, body);
 });
 
+// ============================================================
+// Social — Friends
+// ============================================================
 router.get('/api/friends', async (request: IRequest, env: Env) => {
   const auth = await authGuard(request as unknown as Request, env);
   if (auth instanceof Response) return auth;
   return handleListFriends(createUserClient(env, auth.token), auth.user);
+});
+
+// NEW: list pending friend requests (incoming + outgoing)
+router.get('/api/friends/pending', async (request: IRequest, env: Env) => {
+  const auth = await authGuard(request as unknown as Request, env);
+  if (auth instanceof Response) return auth;
+  return handleListPendingFriends(createUserClient(env, auth.token), auth.user);
 });
 
 router.post('/api/friends/request', async (request: IRequest, env: Env) => {
@@ -206,44 +302,48 @@ router.post('/api/friends/accept', async (request: IRequest, env: Env) => {
   return handleAcceptFriend(createUserClient(env, auth.token), auth.user, body);
 });
 
+// ============================================================
+// Search
+// ============================================================
 router.get('/api/search', async (request: IRequest, env: Env) => {
   const auth = await authGuard(request as unknown as Request, env);
   if (auth instanceof Response) return auth;
   return handleSearch(createUserClient(env, auth.token), auth.user, new URL(request.url).searchParams);
 });
 
-// ---- Admin: Manual Daily Sync Trigger (for testing) ----
+// ============================================================
+// Admin — Manual Daily Sync (protected, service role only)
+// ============================================================
 router.post('/api/admin/daily-sync', async (request: IRequest, env: Env) => {
-  const auth = await authGuard(request as unknown as Request, env);
-  if (auth instanceof Response) return auth;
+  // Require service-role secret header to prevent accidental triggers
+  const secret = request.headers.get('X-Admin-Secret');
+  if (!secret || secret !== env.SUPABASE_SERVICE_ROLE_KEY) {
+    return response.forbidden('Admin access required');
+  }
 
-  // Use anon key + no auth context for cross-user sync access
   const { runDailySync } = await import('./services/dailySync');
-  const anonClient = createAnonClient(env);
-  const result = await runDailySync(anonClient);
+  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const result = await runDailySync(supabase);
   return response.success(result);
 });
 
-// ---- 404 Fallback ----
+// ============================================================
+// 404 Fallback
+// ============================================================
 router.all('*', () => response.notFound('Endpoint not found'));
 
-// Helper: create anon client without user context (for cron/admin sync)
-function createAnonClient(env: Env) {
-  return createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
-
+// ============================================================
+// Worker Export
+// ============================================================
 export default {
   fetch: (request: Request, env: Env, ctx: ExecutionContext) =>
     router.fetch(request, env, ctx),
 
-  // Cloudflare Cron Trigger — PRD §8.1: Daily sync at 00:00 UTC
-  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+  // Cloudflare Cron Trigger — PRD §8.1: 00:00 UTC every day
+  async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     const { runDailySync } = await import('./services/dailySync');
-    const { createClient } = await import('@supabase/supabase-js');
-
-    // Try service role first, fall back to anon key
     const key = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_ANON_KEY;
     const supabase = createClient(env.SUPABASE_URL, key, {
       auth: { persistSession: false, autoRefreshToken: false },
@@ -251,12 +351,8 @@ export default {
 
     ctx.waitUntil(
       runDailySync(supabase)
-        .then(result => {
-          console.log(`[Cron] Daily sync complete: ${result.synced}/${result.totalUsers} users synced`);
-        })
-        .catch(err => {
-          console.error('[Cron] Daily sync failed:', err);
-        })
+        .then(r => console.log(`[Cron] Daily sync: ${r.synced}/${r.totalUsers} users`))
+        .catch(e => console.error('[Cron] Daily sync failed:', e))
     );
   },
 };
