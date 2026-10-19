@@ -22,6 +22,7 @@ android {
         buildConfigField("String", "SUPABASE_URL", "\"https://bbvgdhzjjoemzripehod.supabase.co\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJidmdkaHpqam9lbXpyaXBlaG9kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwMzY2MDksImV4cCI6MjA4NjYxMjYwOX0.w9dBqZlmbOHC_dWY1sAnWbyajmxUgbvzSbqER6xNUr8\"")
         buildConfigField("String", "API_BASE_URL", "\"https://codeunlock-api.arka-cmd.workers.dev\"")
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"172361042725-k6p9o5e5p4srte85scn29l6qcn9p6n1f.apps.googleusercontent.com\"")
     }
 
     buildTypes {
@@ -51,6 +52,9 @@ dependencies {
     // Core
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.activity:activity-compose:1.9.3")
 
     // Compose BOM
@@ -84,12 +88,6 @@ dependencies {
     implementation("androidx.hilt:hilt-work:1.2.0")
     ksp("androidx.hilt:hilt-compiler:1.2.0")
 
-    // Supabase Auth
-    implementation("io.github.jan-tennert.supabase:gotrue-kt:3.1.1")
-    implementation("io.github.jan-tennert.supabase:compose-auth:3.1.1")
-    implementation("io.github.jan-tennert.supabase:compose-auth-ui:3.1.1")
-    implementation("io.ktor:ktor-client-okhttp:3.0.3")
-
     // Google Sign-In
     implementation("androidx.credentials:credentials:1.3.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
@@ -100,6 +98,9 @@ dependencies {
 
     // Splash screen
     implementation("androidx.core:core-splashscreen:1.0.1")
+
+    // Shared contracts
+    implementation(project(":android-contracts"))
 
     // Testing
     testImplementation("junit:junit:4.13.2")

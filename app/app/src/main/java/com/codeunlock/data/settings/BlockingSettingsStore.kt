@@ -1,0 +1,143 @@
+package com.codeunlock.data.settings
+
+import android.content.Context
+import org.json.JSONObject
+
+/**
+ * Shared local store for blocking/onboarding settings.
+ *
+ * This is intentionally simple and synchronous because it is used by:
+ * - Compose onboarding flow
+ * - navigation start-destination resolution
+ * - AccessibilityService blocker logic
+ *
+ * The service layer cannot depend on suspend APIs during event handling, so
+ * SharedPreferences is a practical fit for this phase.
+ */
+object BlockingSettingsStore {
+
+    private const val PREFS_NAME = "codeunlock_settings"
+
+    const val KEY_RESTRICTED_APPS = "restricted_apps"
+    const val KEY_PER_APP_LIMITS = "per_app_limits"
+    const val KEY_USAGE_MODE = "usage_mode"
+    const val KEY_DAILY_SOLVE_TARGET = "daily_solve_target"
+    const val KEY_EMERGENCY_UNLOCK_ENABLED = "emergency_unlock_enabled"
+    const val KEY_FREE_UNLOCK_ENABLED = "free_unlock_enabled"
+    const val KEY_FIRST_SETUP_COMPLETE = "is_first_setup_complete"
+    const val KEY_LAST_SAVED_AT = "last_saved_at"
+
+    private const val DEFAULT_USAGE_MODE = "focused"
+    private const val DEFAULT_DAILY_SOLVE_TARGET = 3
+
+    data class BlockingSettings(
+        val restrictedApps: Set<String> = emptySet(),
+        val perAppLimits: Map<String, Int> = emptyMap(),
+        val usageMode: String = DEFAULT_USAGE_MODE,
+        val dailySolveTarget: Int = DEFAULT_DAILY_SOLVE_TARGET,
+        val emergencyUnlockEnabled: Boolean = true,
+        val freeUnlockEnabled: Boolean = true,
+        val isFirstSetupComplete: Boolean = false,
+        val lastSavedAt: Long = 0L
+    ) {
+        val hasRestrictedApps: Boolean
+            get() = restrictedApps.isNotEmpty()
+    }
+
+    fun read(context: Context): BlockingSettings {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+        val perAppLimits = prefs.getString(KEY_PER_APP_LIMITS, null)?.let { jsonStr ->
+            runCatching {
+                val json = JSONObject(jsonStr)
+                val map = mutableMapOf<String, Int>()
+                val keys = json.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    map[key] = json.getInt(key)
+                }
+                map.toMap()
+            }.getOrNull()
+        } ?: emptyMap()
+
+        return BlockingSettings(
+            restrictedApps = prefs.getStringSet(KEY_RESTRICTED_APPS, emptySet())
+                ?.map { it.trim() }
+                ?.filter { it.isNotBlank() }
+                ?.toSet()
+                ?: emptySet(),
+            perAppLimits = perAppLimits,
+            usageMode = prefs.getString(KEY_USAGE_MODE, DEFAULT_USAGE_MODE) ?: DEFAULT_USAGE_MODE,
+            dailySolveTarget = prefs.getInt(KEY_DAILY_SOLVE_TARGET, DEFAULT_DAILY_SOLVE_TARGET),
+            emergencyUnlockEnabled = prefs.getBoolean(KEY_EMERGENCY_UNLOCK_ENABLED, true),
+            freeUnlockEnabled = prefs.getBoolean(KEY_FREE_UNLOCK_ENABLED, true),
+            isFirstSetupComplete = prefs.getBoolean(KEY_FIRST_SETUP_COMPLETE, false),
+            lastSavedAt = prefs.getLong(KEY_LAST_SAVED_AT, 0L)
+        )
+    }
+
+    fun write(
+        context: Context,
+        settings: BlockingSettings
+    ) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+        val perAppLimitsJson = if (settings.perAppLimits.isNotEmpty()) {
+            val json = JSONObject()
+            settings.perAppLimits.forEach { (pkg, limit) ->
+                json.put(pkg, limit)
+            }
+            json.toString()
+        } else {
+            null
+        }
+
+        prefs.edit()
+            .putStringSet(KEY_RESTRICTED_APPS, settings.restrictedApps.toSet())
+            .putString(KEY_PER_APP_LIMITS, perAppLimitsJson)
+            .putString(KEY_USAGE_MODE, settings.usageMode)
+            .putInt(KEY_DAILY_SOLVE_TARGET, settings.dailySolveTarget.coerceAtLeast(2))
+            .putBoolean(KEY_EMERGENCY_UNLOCK_ENABLED, settings.emergencyUnlockEnabled)
+            .putBoolean(KEY_FREE_UNLOCK_ENABLED, settings.freeUnlockEnabled)
+            .putBoolean(KEY_FIRST_SETUP_COMPLETE, settings.isFirstSetupComplete)
+            .putLong(KEY_LAST_SAVED_AT, settings.lastSavedAt)
+            .apply()
+    }
+
+    fun markOnboardingComplete(
+        context: Context,
+        restrictedApps: Set<String>,
+        usageMode: String,
+        dailySolveTarget: Int,
+        emergencyUnlockEnabled: Boolean,
+        freeUnlockEnabled: Boolean,
+        perAppLimits: Map<String, Int> = emptyMap()
+    ) {
+        write(
+            context = context,
+            settings = BlockingSettings(
+                restrictedApps = restrictedApps,
+                perAppLimits = perAppLimits,
+                usageMode = usageMode,
+                dailySolveTarget = dailySolveTarget,
+                emergencyUnlockEnabled = emergencyUnlockEnabled,
+                freeUnlockEnabled = freeUnlockEnabled,
+                isFirstSetupComplete = true,
+                lastSavedAt = System.currentTimeMillis()
+            )
+        )
+    }
+
+    fun isOnboardingComplete(context: Context): Boolean {
+        return read(context).isFirstSetupComplete
+    }
+
+    fun getRestrictedApps(context: Context): Set<String> {
+        return read(context).restrictedApps
+    }
+
+    fun clear(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().clear().apply()
+    }
+}

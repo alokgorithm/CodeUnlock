@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CodeUnlock</string>
+
+    <string name="login_title">Welcome to CodeUnlock</string>
+    <string name="login_subtitle">Turn distraction into discipline. Restrict distracting apps and unlock them by solving real coding problems.</string>
+    <string name="login_google_cta">Continue with Google</string>
+    <string name="login_preview_cta">Preview app flow</string>
+    <string name="login_disclaimer">Google sign-in is the intended production flow. Preview mode is for UI and wiring validation.</string>
+
+    <string name="permissions_title">Grant Required Permissions</string>
+    <string name="permissions_subtitle">CodeUnlock needs these Android permissions to detect restricted apps and measure screen-time usage accurately.</string>
+    <string name="permissions_accessibility_title">Accessibility Permission</string>
+    <string name="permissions_accessibility_body">Required to detect foreground apps and launch the lock overlay when a blocked app is opened.</string>
+    <string name="permissions_usage_title">Usage Access Permission</string>
+    <string name="permissions_usage_body">Required to read app usage data, compute screen time, and support wellbeing sync.</string>
+    <string name="permissions_accessibility_cta">Open Accessibility Settings</string>
+    <string name="permissions_usage_cta">Open Usage Access Settings</string>
+    <string name="permissions_continue_cta">I\'ve Granted the Permissions</string>
+    <string name="permissions_skip_cta">Continue for now</string>
+
+    <string name="dashboard_title">CodeUnlock</string>
+    <string name="dashboard_progress_title">Today\'s Progress</string>
+    <string name="dashboard_platform_stats">Platform Stats</string>
+    <string name="dashboard_next_problem">Next Problem</string>
+    <string name="dashboard_wellbeing">Wellbeing</string>
+    <string name="dashboard_quick_actions">Quick Actions</string>
+    <string name="dashboard_restricted_apps">Restricted Apps</string>
+    <string name="dashboard_solve_next_cta">Solve Next Problem</string>
+    <string name="dashboard_preview_overlay_cta">Preview Lock Overlay</string>
+
+    <string name="problem_title">Solve to Unlock</string>
+    <string name="problem_track_label">Top 200 interview track</string>
+    <string name="problem_open_cta">Open problem</string>
+    <string name="problem_verify_cta">Verify solve</string>
+    <string name="problem_verifying_cta">Verifying...</string>
+    <string name="problem_already_verified_cta">Already verified</string>
+
+    <string name="lock_title_format">%1$s is Locked</string>
+    <string name="lock_status_message">Solve a coding problem to unlock access.</string>
+    <string name="lock_primary_cta">Solve to Unlock</string>
+    <string name="lock_secondary_cta">Return to Dashboard</string>
+    <string name="lock_emergency_cta">Emergency Unlock</string>
+    <string name="lock_footer_message">Emergency unlock is available once per day if enabled.</string>
+    <string name="lock_current_status">Current Status</string>
+    <string name="lock_next_reward">Next Reward</string>
+    <string name="lock_remaining_minutes_format">You have %1$d minutes remaining.</string>
+    <string name="lock_reward_minutes_format">Solve 1 verified problem to unlock %1$d minutes.</string>
+
+    <string name="service_block_reason">App blocked by CodeUnlock</string>
+    <string name="service_overlay_channel_name">CodeUnlock Overlay</string>
+    <string name="service_overlay_channel_description">Notifications and alerts for blocked app overlay events.</string>
+
+    <string name="accessibility_service_label">CodeUnlock App Blocker</string>
+    <string name="accessibility_service_description">Monitors foreground apps and launches the CodeUnlock lock screen for restricted apps.</string>
+    <string name="accessibility_service_summary">Detects restricted apps and opens the CodeUnlock blocking overlay.</string>
+    <string name="service_overlay_notification_title">Restricted app opened</string>
+    <string name="service_overlay_notification_body">CodeUnlock is protecting your focus by showing the lock overlay.</string>
+</resources>

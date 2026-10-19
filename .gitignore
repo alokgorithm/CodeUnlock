@@ -21,8 +21,11 @@ UI Design.zip
 
 # Android / Gradle
 .gradle/
-build/
-app/build/
+**/build/
 local.properties
 .idea/
 *.iml
+.kotlin/
+emulator_*.png
+app/emulator_*.png
+analysis_dump_v1.txt
