@@ -1,6 +1,7 @@
 package com.codeunlock.ui.screens.dashboard
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -296,11 +297,12 @@ fun DashboardScreen(
                     onOpenProblem = onOpenProblem
                 )
 
-                SectionTitle("Wellbeing")
+                SectionTitle("Screen Time & Wellbeing")
                 WellbeingCard(
                     wellbeingScore = state.wellbeingScoreLabel,
                     screenTime = state.screenTimeLabel,
-                    pickupCount = state.pickupCountLabel
+                    pickupCount = state.pickupCountLabel,
+                    onClick = onOpenWellbeing
                 )
 
                 SectionTitle("Quick Actions")
@@ -339,7 +341,7 @@ fun DashboardScreen(
                     }
 
                     QuickActionRow("Tracks", "Badges", onOpenTracks, onOpenBadges)
-                    QuickActionRow("Rankings", "Wellbeing", onOpenRankings, onOpenWellbeing)
+                    QuickActionRow("Rankings", "Screen Time & Apps", onOpenRankings, onOpenWellbeing)
                     QuickActionRow("Social", "Profile", onOpenSocial, onOpenProfile)
                 }
 
@@ -730,33 +732,47 @@ private fun NextProblemCard(
 private fun WellbeingCard(
     wellbeingScore: String,
     screenTime: String,
-    pickupCount: String
+    pickupCount: String,
+    onClick: () -> Unit = {}
 ) {
     Card(
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.62f)
-        )
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
     ) {
         Column(
             modifier = Modifier.padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Shield, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Shield, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "Phone & App Screen Time",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
                 Text(
-                    text = "Digital wellbeing snapshot",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
+                    text = "App breakdown →",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
                 )
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 SmallStatPill(
-                    title = "Score",
+                    title = "Habit Score",
                     value = wellbeingScore
                 )
                 SmallStatPill(
@@ -768,6 +784,12 @@ private fun WellbeingCard(
                     value = pickupCount
                 )
             }
+
+            Text(
+                text = "Tap to view complete phone screen time & per-app breakdown",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.75f)
+            )
         }
     }
 }
@@ -958,6 +980,7 @@ class DashboardViewModel @Inject constructor(
         val session = sessionManager.currentState()
         val localSettings = BlockingSettingsStore.read(context)
         val localRemainingUnlockMinutes = UnlockSessionStore.getRemainingUnlockMinutes(context)
+        val initialHabits = UsageManager.calculateLiveStats(context)
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
@@ -965,6 +988,9 @@ class DashboardViewModel @Inject constructor(
                 dailyTarget = localSettings.dailySolveTarget,
                 remainingUnlockMinutes = localRemainingUnlockMinutes,
                 restrictedApps = localSettings.restrictedApps.map(::displayNameForPackage),
+                wellbeingScoreLabel = if (initialHabits.totalScreenTimeMinutes > 0 || initialHabits.pickupCount > 0) "${initialHabits.liveScore}" else "100",
+                screenTimeLabel = initialHabits.totalScreenTimeFormatted,
+                pickupCountLabel = "${initialHabits.pickupCount}",
                 userLabel = session.email ?: "CodeUnlock User",
                 dateLabel = todayLabel(),
                 errorMessage = null
@@ -1002,6 +1028,14 @@ class DashboardViewModel @Inject constructor(
                 "Could not load live dashboard data. Pull to refresh after checking your connection."
             }
 
+            val localHabits = UsageManager.calculateLiveStats(context)
+            val resolvedScore = wellbeing?.today?.wellbeingScore?.toInt()?.toString()
+                ?: if (localHabits.totalScreenTimeMinutes > 0 || localHabits.pickupCount > 0) "${localHabits.liveScore}" else "100"
+            val resolvedScreenTime = wellbeing?.formatScreenTime()?.takeIf { it != "—" && it.isNotBlank() }
+                ?: localHabits.totalScreenTimeFormatted
+            val resolvedPickups = wellbeing?.today?.pickupCount?.toString()
+                ?: "${localHabits.pickupCount}"
+
             _uiState.value = DashboardUiState(
                 isLoading = false,
                 errorMessage = errorMessage,
@@ -1021,9 +1055,9 @@ class DashboardViewModel @Inject constructor(
                 leetcodeDifficultyBreakdown = leetcode.formatBreakdown(),
                 codeforcesRatingLabel = codeforces?.currentRating?.toString() ?: "—",
                 codeforcesRankLabel = codeforces?.rank ?: "No sync yet",
-                wellbeingScoreLabel = wellbeing?.today?.wellbeingScore?.toInt()?.toString() ?: "—",
-                screenTimeLabel = wellbeing.formatScreenTime(),
-                pickupCountLabel = wellbeing?.today?.pickupCount?.toString() ?: "—",
+                wellbeingScoreLabel = resolvedScore,
+                screenTimeLabel = resolvedScreenTime,
+                pickupCountLabel = resolvedPickups,
                 restrictedApps = settings?.restrictedApps?.takeIf { it.isNotEmpty() }
                     ?: localSettings.restrictedApps.map(::displayNameForPackage),
                 nextProblem = nextProblem.toProblemCardModel()

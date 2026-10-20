@@ -109,10 +109,21 @@ class AppBlockerService : AccessibilityService() {
         if (!decision.shouldBlock) return
 
         val isFocusActive = FocusTimerService.isRunning.value && !FocusTimerService.isBreakTime.value
-        if (!isFocusActive) {
+        val blockingSettings = BlockingSettingsStore.read(applicationContext)
+        val isStrictLock = blockingSettings.usageMode == "strict_lock" || blockingSettings.usageMode == "hardcore" || blockingSettings.usageMode == "strict"
+
+        if (!isFocusActive && !isStrictLock && blockingSettings.freeUnlockEnabled) {
             // ── PRD §6.2: free unlock — 1 min automatic, once/day ────
             // Returns true if a free unlock was granted → app may open.
-            if (tryGrantFreeUnlock(packageName)) return
+            if (tryGrantFreeUnlock(packageName)) {
+                val appName = resolveAppName(packageName)
+                android.widget.Toast.makeText(
+                    applicationContext,
+                    "CodeUnlock: 1-minute free grace peek active for $appName",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+                return
+            }
 
             // Check if Mindful Pause (Breathing Interstitial) should be displayed
             val reelsSettings = ReelsBlockingStore.read(applicationContext)

@@ -335,15 +335,15 @@ private fun SectionHeader(title: String) {
 @Composable
 private fun ModeSelector(selectedMode: String, onModeSelected: (String) -> Unit) {
     val modes = listOf(
-        Triple("hardcore", "⚡ Hardcore", "2h daily limit. Maximum discipline."),
-        Triple("focused", "🎯 Focused", "4h daily limit. Recommended balance."),
-        Triple("relaxed", "☕ Relaxed", "6-8h daily limit. Moderate control."),
-        Triple("custom", "🔒 Strict Lock", "Zero quota. Must solve problems to unlock.")
+        Triple("strict_lock", "🔒 Strict Lock (Recommended)", "Zero quota. Restricted apps are locked until you solve a coding problem."),
+        Triple("hardcore", "⚡ Hardcore", "Strict lockdown. No grace quota; problems required to unlock."),
+        Triple("focused", "🎯 Focused", "30-minute daily grace limit before blocking kicks in."),
+        Triple("relaxed", "☕ Relaxed", "60-minute daily limit before blocking kicks in.")
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         modes.forEach { (modeId, title, desc) ->
-            val isSelected = selectedMode == modeId
+            val isSelected = selectedMode == modeId || (modeId == "strict_lock" && (selectedMode == "custom" || selectedMode == "strict"))
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(

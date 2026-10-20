@@ -8,6 +8,8 @@ import android.os.Process
 import android.util.Log
 import com.codeunlock.data.settings.BlockingSettingsStore
 import com.codeunlock.data.unlock.UnlockSessionStore
+import com.codeunlock.data.focus.FocusSessionStore
+import com.codeunlock.service.BlockedAttemptsStore
 import com.codeunlock.service.FocusTimerService
 import java.util.Calendar
 import java.util.Locale
@@ -37,15 +39,26 @@ object UsageManager {
 
     /** Mode → daily limit per restricted app in minutes (PRD §5 onboarding modes) */
     private val MODE_DAILY_LIMIT_MINUTES = mapOf(
-        "relaxed"  to 420,   // 6–8 h → 7 h
-        "focused"  to 240,   // 4 h (default recommended)
-        "hardcore" to 120,   // 2 h
-        "custom"   to 0,     // 0 allowed → requires coding unlock / per-app limit
-        // Legacy onboarding aliases backwards-compatibility:
-        "strict"   to 120,
-        "hard"     to 240,
-        "normal"   to 420,
-        "free"     to 0,
+        "strict_lock" to 0,     // 0 = zero quota, coding problem required
+        "strict"      to 0,     // alias
+        "custom"      to 0,     // 0 = requires coding unlock
+        "hardcore"    to 0,     // 0 = strict zero quota
+        "focused"     to 30,    // 30 min daily grace quota before lock
+        "relaxed"     to 60,    // 60 min daily quota before lock
+        "hard"        to 0,
+        "normal"      to 60,
+        "free"        to 0,
+    )
+
+    data class LiveHabitsStats(
+        val totalScreenTimeMinutes: Long,
+        val totalScreenTimeFormatted: String,
+        val restrictedMinutes: Long,
+        val pickupCount: Int,
+        val liveScore: Int,
+        val focusMinutes: Long,
+        val blockedAttempts: Int,
+        val reclaimedMinutes: Long
     )
 
     // ── Data types ───────────────────────────────────────────────
@@ -232,6 +245,49 @@ object UsageManager {
         return count
     }
 
+    // ── Live habits & phone usage calculation ───────────────────
+
+    fun calculateLiveStats(context: Context): LiveHabitsStats {
+        if (!hasUsageStatsPermission(context)) {
+            return LiveHabitsStats(0L, "0m", 0L, 0, 100, 0L, 0, 0L)
+        }
+        val usageMap = collectTodayUsageMap(context)
+        val totalSeconds = usageMap.values.fold(0L) { acc, stat -> acc + stat.durationSeconds }
+        val totalMinutes = totalSeconds / 60
+        val pickupCount = getTodayPickupCount(context)
+        val restrictedApps = BlockingSettingsStore.getRestrictedApps(context)
+
+        val restrictedSeconds = usageMap.values
+            .filter { restrictedApps.contains(it.packageName) }
+            .fold(0L) { acc, stat -> acc + stat.durationSeconds }
+        val restrictedMinutes = restrictedSeconds / 60
+
+        val blockedAttempts = BlockedAttemptsStore.getTodayCount(context)
+        val focusMinutes = FocusSessionStore.getTodayFocusMinutes(context).toLong()
+        val reclaimedMinutes = (blockedAttempts * 12L) + focusMinutes
+
+        val excessivePickups = (pickupCount - 30).coerceAtLeast(0)
+        val baseScore = 100 - (if (totalMinutes > 0) (restrictedMinutes.toFloat() / totalMinutes.toFloat() * 50) else 0f) - (excessivePickups * 2)
+        val liveScore = baseScore.coerceIn(0f, 100f).toInt()
+
+        val formattedTime = if (totalMinutes >= 60) {
+            "${totalMinutes / 60}h ${totalMinutes % 60}m"
+        } else {
+            "${totalMinutes}m"
+        }
+
+        return LiveHabitsStats(
+            totalScreenTimeMinutes = totalMinutes,
+            totalScreenTimeFormatted = formattedTime,
+            restrictedMinutes = restrictedMinutes,
+            pickupCount = pickupCount,
+            liveScore = liveScore,
+            focusMinutes = focusMinutes,
+            blockedAttempts = blockedAttempts,
+            reclaimedMinutes = reclaimedMinutes
+        )
+    }
+
     // ── Permission helper ─────────────────────────────────────────
 
     fun hasUsageStatsPermission(context: Context): Boolean {
@@ -247,7 +303,7 @@ object UsageManager {
             return override
         }
         val normalizedMode = settings.usageMode.lowercase(Locale.ROOT).trim()
-        return MODE_DAILY_LIMIT_MINUTES[normalizedMode] ?: 240
+        return MODE_DAILY_LIMIT_MINUTES[normalizedMode] ?: 0
     }
 
     private fun todayBounds(): Pair<Long, Long> {

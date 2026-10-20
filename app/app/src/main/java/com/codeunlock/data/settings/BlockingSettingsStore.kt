@@ -27,7 +27,7 @@ object BlockingSettingsStore {
     const val KEY_FIRST_SETUP_COMPLETE = "is_first_setup_complete"
     const val KEY_LAST_SAVED_AT = "last_saved_at"
 
-    private const val DEFAULT_USAGE_MODE = "focused"
+    private const val DEFAULT_USAGE_MODE = "strict_lock"
     private const val DEFAULT_DAILY_SOLVE_TARGET = 3
 
     data class BlockingSettings(
@@ -36,7 +36,7 @@ object BlockingSettingsStore {
         val usageMode: String = DEFAULT_USAGE_MODE,
         val dailySolveTarget: Int = DEFAULT_DAILY_SOLVE_TARGET,
         val emergencyUnlockEnabled: Boolean = true,
-        val freeUnlockEnabled: Boolean = true,
+        val freeUnlockEnabled: Boolean = false,
         val isFirstSetupComplete: Boolean = false,
         val lastSavedAt: Long = 0L
     ) {

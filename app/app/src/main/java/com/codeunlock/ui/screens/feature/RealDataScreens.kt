@@ -105,32 +105,22 @@ object FallbackData {
 
     fun defaultProfile(): ProfileDto = ProfileDto(
         id = "local-user",
-        username = "Local Developer",
-        email = "developer@codeunlock.local",
+        username = "CodeUnlock User",
+        email = "Offline / Local Mode",
         avatarEmoji = "⚡",
-        college = "Autonomous Engineering",
-        leetcodeUsername = "codeunlock_dev",
-        codeforcesHandle = "codeunlock",
-        lastSyncAt = "Offline Mode",
-        ranking = ProfileRankingDto(
-            globalRank = 42,
-            collegeRank = 1,
-            rankingScore = 1420.0,
-            totalVerifiedSolves = 1,
-            consistencyStreakDays = 1
-        ),
-        badges = listOf(
-            ProfileBadgeDto(1, "First Solve", "discipline", "🎯", "Earned", 1.0)
-        ),
+        college = null,
+        leetcodeUsername = null,
+        codeforcesHandle = null,
+        lastSyncAt = "Local Mode",
+        ranking = null,
+        badges = emptyList(),
         statsSummary = ProfileStatsSummaryDto(
-            totalVerifiedSolves = 1,
-            currentStreak = 1,
-            wellbeingScore30dAvg = 94.0,
-            screenTimeReductionPct = 35
+            totalVerifiedSolves = 0,
+            currentStreak = 0,
+            wellbeingScore30dAvg = null,
+            screenTimeReductionPct = 0
         ),
-        classrooms = listOf(
-            ProfileClassroomDto("cr-1", "CodeUnlock Champions", "CU2026")
-        )
+        classrooms = emptyList()
     )
 
     fun defaultRankings(): List<RankingEntry> = listOf(
@@ -254,16 +244,38 @@ fun ProfileRoute(
     onOpenSettings: () -> Unit = {},
     viewModel: FeatureViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+    val localSettings = remember { BlockingSettingsStore.read(context) }
+    val localHabits = remember { UsageManager.calculateLiveStats(context) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { viewModel.loadProfile() }
     FeatureScaffold("Profile", onBack, state.loading, state.message) {
         val profile = state.profile
         if (profile == null) EmptyText("Profile data is not available yet.") else {
             InfoCard(profile.username, profile.email)
-            InfoCard("Linked accounts", "LeetCode: ${profile.leetcodeUsername ?: "not connected"}\nCodeforces: ${profile.codeforcesHandle ?: "not connected"}")
-            InfoCard("Rankings", "Global: #${profile.ranking?.globalRank ?: "-"}\nCollege: #${profile.ranking?.collegeRank ?: "-"}")
-            InfoCard("Stats", "Verified solves: ${profile.statsSummary.totalVerifiedSolves}\nStreak: ${profile.statsSummary.currentStreak} days\nWellbeing 30d: ${profile.statsSummary.wellbeingScore30dAvg ?: "-"}")
-            InfoCard("Protection & Rules", "Daily solve target: 2 problems\nUnlock duration: 30 min per verified solve\nFocus lockdown: YouTube & Distracting apps strictly locked") {
+            InfoCard(
+                "Linked accounts",
+                "LeetCode: ${profile.leetcodeUsername ?: "Not connected"}\nCodeforces: ${profile.codeforcesHandle ?: "Not connected"}"
+            )
+            InfoCard(
+                "Rankings",
+                "Global: ${profile.ranking?.globalRank?.let { "#$it" } ?: "Not ranked yet"}\nCollege: ${profile.ranking?.collegeRank?.let { "#$it" } ?: "Not ranked yet"}"
+            )
+            InfoCard(
+                "Stats",
+                "Verified solves: ${profile.statsSummary.totalVerifiedSolves}\nStreak: ${profile.statsSummary.currentStreak} days\nLive Wellbeing Score: ${localHabits.liveScore}/100\nScreen time today: ${localHabits.totalScreenTimeFormatted}"
+            )
+            val modeLabel = when (localSettings.usageMode) {
+                "strict_lock" -> "Strict Lock (Zero Quota)"
+                "hardcore" -> "Hardcore (Locked until solved)"
+                "focused" -> "Focused (30m limit)"
+                "relaxed" -> "Relaxed (60m limit)"
+                else -> localSettings.usageMode.replaceFirstChar { it.uppercase() }
+            }
+            InfoCard(
+                "Protection & Rules",
+                "Daily solve target: ${localSettings.dailySolveTarget} problems\nDiscipline mode: $modeLabel\nRestricted apps: ${localSettings.restrictedApps.size} apps monitored\nUnlock duration: 30 min per verified solve"
+            ) {
                 Button(
                     onClick = onOpenSettings,
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp)

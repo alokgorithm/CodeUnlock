@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -228,22 +229,29 @@ fun FocusTimerScreen(
                     else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = if (isBreakTime) "☕ Rest Break Active" else "🎯 Focusing: $activeSubject",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isBreakTime) Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = if (isPaused) "PAUSED" else "RUNNING",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isPaused) Color(0xFFFF9800) else Color(0xFF4CAF50)
+                            )
+                        }
                         Text(
-                            text = if (isBreakTime) "☕ Rest Break Active" else "🎯 Focusing: $activeSubject",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (isBreakTime) Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = if (isPaused) "PAUSED" else "RUNNING",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isPaused) Color(0xFFFF9800) else Color(0xFF4CAF50)
+                            text = "🛡️ Strict Focus Active: YouTube and distracting apps are locked.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -306,28 +314,49 @@ fun FocusTimerScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 if (!isRunning) {
-                    Button(
-                        onClick = {
-                            val duration = when (selectedMode) {
-                                FocusTimerService.MODE_POMODORO -> 25 * 60L
-                                FocusTimerService.MODE_DEEP_FOCUS -> selectedDeepMinutes * 60L
-                                FocusTimerService.MODE_STOPWATCH -> 0L
-                                else -> 25 * 60L
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Button(
+                            onClick = {
+                                val duration = when (selectedMode) {
+                                    FocusTimerService.MODE_POMODORO -> 25 * 60L
+                                    FocusTimerService.MODE_DEEP_FOCUS -> selectedDeepMinutes * 60L
+                                    FocusTimerService.MODE_STOPWATCH -> 0L
+                                    else -> 25 * 60L
+                                }
+                                FocusTimerService.start(context, duration, selectedMode, selectedSubject)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp),
+                            shape = RoundedCornerShape(18.dp)
+                        ) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "Start Focus Session",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Card(
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Shield, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = "Tap Start to activate focus lock across YouTube and restricted apps.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
                             }
-                            FocusTimerService.start(context, duration, selectedMode, selectedSubject)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(54.dp),
-                        shape = RoundedCornerShape(18.dp)
-                    ) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = "Start Focus Session",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        }
                     }
                 } else {
                     // Running: Pause/Resume + Stop
