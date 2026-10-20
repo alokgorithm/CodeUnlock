@@ -70,6 +70,9 @@ import com.codeunlock.api.dto.TrackProgressSummary
 import com.codeunlock.api.dto.UnlockSessionDto
 import com.codeunlock.api.dto.VerifySolveResponse
 import com.codeunlock.api.repository.CodeUnlockRepository
+import com.codeunlock.data.platform.PublicCodingPlatformClient
+import com.codeunlock.data.progress.DailyProgressStore
+import com.codeunlock.data.settings.BlockingSettingsStore
 import com.codeunlock.data.session.SessionManager
 import com.codeunlock.data.unlock.UnlockSessionStore
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -802,6 +805,7 @@ class ProblemViewModel @Inject constructor(
                 .onSuccess { result ->
                     if (result.verified) {
                         UnlockSessionStore.cacheServerUnlock(context, result.unlockSession)
+                        DailyProgressStore.recordSolve(context, problem.id, result.unlockGrantedMinutes)
                     }
 
                     _uiState.update {
@@ -819,16 +823,32 @@ class ProblemViewModel @Inject constructor(
                     }
                 }
                 .onFailure { throwable ->
-                    // Offline fallback: allow local unlock session when backend is unreachable
+                    // Offline fallback or direct platform verification
                     val localSession = UnlockSessionStore.grantCodingUnlock(context, durationMinutes = 30)
+                    val solvedCount = DailyProgressStore.recordSolve(context, problem.id, 30)
+                    val localSettings = BlockingSettingsStore.read(context)
+                    val target = localSettings.dailySolveTarget.coerceAtLeast(1)
+
+                    var verifiedViaPlatform = false
+                    val lcUsername = localSettings.leetcodeUsername
+                    if (problem.platform.equals("leetcode", ignoreCase = true) && !lcUsername.isNullOrBlank()) {
+                        verifiedViaPlatform = PublicCodingPlatformClient.verifyLeetCodeSolve(lcUsername, problem.slug)
+                    }
+
+                    val verificationMessage = if (verifiedViaPlatform) {
+                        "Verified via LeetCode! 30 minutes unlock granted! 🎉"
+                    } else {
+                        "Verified locally (offline mode). 30 minutes unlock granted! 🎉"
+                    }
+
                     val offlineResult = VerifySolveResponse(
                         verified = true,
                         unlockGrantedMinutes = 30,
                         dailyProgress = DailyProgressDto(
-                            problemsSolved = 1,
-                            dailyTarget = 3,
-                            targetMet = false,
-                            unlockMinutesEarned = 30,
+                            problemsSolved = solvedCount,
+                            dailyTarget = target,
+                            targetMet = solvedCount >= target,
+                            unlockMinutesEarned = DailyProgressStore.getUnlockMinutesEarnedToday(context),
                             unlockMinutesUsed = 0
                         ),
                         unlockSession = UnlockSessionDto(
@@ -846,7 +866,7 @@ class ProblemViewModel @Inject constructor(
                             isVerifying = false,
                             isVerified = true,
                             verificationResult = offlineResult,
-                            message = "Verified locally (offline mode). 30 minutes unlock granted! 🎉",
+                            message = verificationMessage,
                             error = null
                         )
                     }
@@ -895,10 +915,11 @@ class ProblemViewModel @Inject constructor(
                 }
                 .onFailure { throwable ->
                     val fallback = unusedFallbackProblem(problemIdArg.coerceAtLeast(1))
+                    val solvedCount = DailyProgressStore.getProblemsSolvedToday(context)
                     val response = NextProblemResponse(
                         problem = fallback,
                         progress = TrackProgressSummary(
-                            solvedCount = 0,
+                            solvedCount = solvedCount,
                             totalCount = 200,
                             currentPosition = fallback.trackPosition
                         ),

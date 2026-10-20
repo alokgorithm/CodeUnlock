@@ -83,6 +83,8 @@ import com.codeunlock.api.dto.TrackProgressDto
 import com.codeunlock.api.dto.UserSettingsDto
 import com.codeunlock.api.dto.WellbeingStatsDto
 import com.codeunlock.api.repository.CodeUnlockRepository
+import com.codeunlock.data.platform.PublicCodingPlatformClient
+import com.codeunlock.data.progress.DailyProgressStore
 import com.codeunlock.data.session.SessionManager
 import com.codeunlock.data.settings.BlockingSettingsStore
 import com.codeunlock.data.unlock.UnlockSessionStore
@@ -141,6 +143,7 @@ fun DashboardRoute(
             if (event == Lifecycle.Event.ON_RESUME) {
                 isAccessibilityGranted = isAccessibilityActive(context)
                 isUsageStatsGranted = UsageManager.hasUsageStatsPermission(context)
+                viewModel.load()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -307,16 +310,16 @@ fun DashboardScreen(
                     PlatformCard(
                         modifier = Modifier.weight(1f),
                         title = "LeetCode",
-                        primary = state.leetcodeSolvedLabel,
-                        secondary = state.leetcodeUsername?.let { "@$it" } ?: state.leetcodeDifficultyBreakdown,
+                        primary = if (state.leetcodeSolvedLabel != "—") "${state.leetcodeSolvedLabel} solved" else "—",
+                        secondary = if (state.leetcodeDifficultyBreakdown != "—" && state.leetcodeDifficultyBreakdown != "No sync yet") state.leetcodeDifficultyBreakdown else state.leetcodeUsername?.let { "@$it" } ?: "Link in Profile",
                         accent = Color(0xFFFF9800),
                         icon = Icons.Default.Code
                     )
                     PlatformCard(
                         modifier = Modifier.weight(1f),
                         title = "Codeforces",
-                        primary = state.codeforcesRatingLabel,
-                        secondary = state.codeforcesHandle?.let { "@$it" } ?: state.codeforcesRankLabel,
+                        primary = if (state.codeforcesRatingLabel != "—") "${state.codeforcesRatingLabel} rating" else "—",
+                        secondary = if (state.codeforcesRankLabel != "No sync yet" && state.codeforcesRankLabel.isNotBlank()) state.codeforcesRankLabel else state.codeforcesHandle?.let { "@$it" } ?: "Link in Profile",
                         accent = Color(0xFF64B5F6),
                         icon = Icons.Default.TrendingUp
                     )
@@ -1000,11 +1003,13 @@ class DashboardViewModel @Inject constructor(
         val session = sessionManager.currentState()
         val localSettings = BlockingSettingsStore.read(context)
         val localRemainingUnlockMinutes = UnlockSessionStore.getRemainingUnlockMinutes(context)
+        val localSolvesToday = DailyProgressStore.getProblemsSolvedToday(context)
         val initialHabits = UsageManager.calculateLiveStats(context)
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
+                problemsSolvedToday = localSolvesToday,
                 dailyTarget = localSettings.dailySolveTarget,
                 remainingUnlockMinutes = localRemainingUnlockMinutes,
                 restrictedApps = localSettings.restrictedApps.map(::displayNameForPackage),
@@ -1019,23 +1024,40 @@ class DashboardViewModel @Inject constructor(
             )
 
             val settingsDeferred = async { repository.getSettings() }
+            val dailyProgressDeferred = async { repository.getDailyProgress() }
             val progressDeferred = async { repository.getTrackProgress() }
             val nextProblemDeferred = async { repository.getNextProblem() }
             val wellbeingDeferred = async { repository.getWellbeingStats() }
-            val leetcodeDeferred = async { repository.getLeetCodeStats() }
-            val codeforcesDeferred = async { repository.getCodeforcesStats() }
+            val leetcodeDeferred = async {
+                val username = localSettings.leetcodeUsername
+                if (!username.isNullOrBlank()) {
+                    PublicCodingPlatformClient.fetchLeetCodeStats(context, username)
+                } else {
+                    repository.getLeetCodeStats().getOrNull()
+                }
+            }
+            val codeforcesDeferred = async {
+                val handle = localSettings.codeforcesHandle
+                if (!handle.isNullOrBlank()) {
+                    PublicCodingPlatformClient.fetchCodeforcesStats(context, handle)
+                } else {
+                    repository.getCodeforcesStats().getOrNull()
+                }
+            }
             val rankingsDeferred = async { repository.getGlobalRankings(limit = 1, offset = 0) }
 
             val settings = settingsDeferred.await().getOrNull()
+            val dailyProgress = dailyProgressDeferred.await().getOrNull()
             val progress = progressDeferred.await().getOrNull()
             val nextProblem = nextProblemDeferred.await().getOrNull()
             val wellbeing = wellbeingDeferred.await().getOrNull()
-            val leetcode = leetcodeDeferred.await().getOrNull()
-            val codeforces = codeforcesDeferred.await().getOrNull()
+            val leetcode = leetcodeDeferred.await()
+            val codeforces = codeforcesDeferred.await()
             val rankings = rankingsDeferred.await().getOrNull()
 
             val hadAnyData = listOf(
                 settings,
+                dailyProgress,
                 progress,
                 nextProblem,
                 wellbeing,
@@ -1058,12 +1080,17 @@ class DashboardViewModel @Inject constructor(
             val resolvedPickups = wellbeing?.today?.pickupCount?.toString()
                 ?: "${localHabits.pickupCount}"
 
+            val lcSolves = leetcode?.problemsSolvedToday ?: 0
+            val cfSolves = codeforces?.problemsSolvedToday ?: 0
+            val backendSolves = dailyProgress?.problemsSolved ?: 0
+            val effectiveSolves = maxOf(localSolvesToday, backendSolves, lcSolves + cfSolves)
+
             _uiState.value = DashboardUiState(
                 isLoading = false,
                 errorMessage = errorMessage,
                 userLabel = session.email ?: "CodeUnlock User",
                 dateLabel = todayLabel(),
-                problemsSolvedToday = leetcode?.problemsSolvedToday ?: progress?.solved ?: 0,
+                problemsSolvedToday = effectiveSolves,
                 dailyTarget = settings?.dailySolveTarget ?: localSettings.dailySolveTarget,
                 remainingUnlockMinutes = estimateRemainingMinutes(
                     progress = progress,
@@ -1073,9 +1100,9 @@ class DashboardViewModel @Inject constructor(
                 ),
                 currentStreak = progress?.currentStreak ?: 0,
                 globalRankLabel = rankings?.myRank?.rank?.let { "#$it" } ?: "—",
-                leetcodeSolvedLabel = leetcode?.totalSolved?.toString() ?: "—",
+                leetcodeSolvedLabel = leetcode?.totalSolved?.takeIf { it > 0 }?.toString() ?: "—",
                 leetcodeDifficultyBreakdown = leetcode.formatBreakdown(),
-                codeforcesRatingLabel = codeforces?.currentRating?.toString() ?: "—",
+                codeforcesRatingLabel = codeforces?.currentRating?.takeIf { it > 0 }?.toString() ?: "—",
                 codeforcesRankLabel = codeforces?.rank ?: "No sync yet",
                 wellbeingScoreLabel = resolvedScore,
                 screenTimeLabel = resolvedScreenTime,
@@ -1203,7 +1230,7 @@ class DashboardViewModel @Inject constructor(
 
     private fun LeetCodeStatsDto?.formatBreakdown(): String {
         if (this == null) return "No sync yet"
-        return "${easySolved} easy · ${mediumSolved} medium · ${hardSolved} hard"
+        return "E: ${easySolved} · M: ${mediumSolved} · H: ${hardSolved}"
     }
 
     private fun WellbeingStatsDto?.formatScreenTime(): String {
