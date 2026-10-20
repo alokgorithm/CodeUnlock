@@ -1,23 +1,33 @@
 ---
-updated: 2026-10-20T00:35:00+05:30
+updated: 2026-10-20T10:25:00+05:30
 ---
 
 # Project State
 
 ## Current Position
 
-**Milestone:** 2 (Completed) → Starting Milestone 3: Verification & Automated Testing
-**Phase:** 3.1
+**Milestone:** 3 (In Progress: Verification & Automated Testing)
+**Phase:** 3.1 & 3.2 Completed
 **Status:** ready
-**Plan:** Verify Cloudflare backend API endpoints, test Supabase sync, and run automated verification suite.
+**Plan:** Proceed with Playwright MCP tests and backend worker local dev server verification.
 
 ## Last Action
 
-- Connected and activated all external tools & integrations: GSD for Antigravity, GitHub CLI (`alokgorithm`), CodeRabbit CLI & plugin, Supabase MCP, Playwright MCP, and Google Android Agent skills.
-- Implemented and verified Focus Mode strict lockdown: YouTube and distracting entertainment apps are blocked immediately when Focus Session is active.
-- Trapped back-gesture in `LockActivity`: prevents popping back into blocked apps, automatically routing back to CodeUnlock Dashboard.
-- Added live Permission Health banners & direct "Manage Apps" navigation on Dashboard.
-- Tested and empirically verified on Pixel 9a emulator (`emulator-5554`) with screenshot captures (`emulator_focus_locked_youtube.png`, `emulator_after_back_dashboard.png`).
+- **Offline-First Resilience**:
+  - Implemented `FallbackData` for instant UI rendering across Profile, Badges, Top 200 Track, and Rankings tabs.
+  - Implemented offline problem solving and verification fallback: when Supabase/Cloudflare backend is unreachable, verified solves award 30-minute local unlock sessions and immediately reflect on Dashboard (`29 min unlocked`).
+  - Added clean error filtering in `FeatureScaffold` to eliminate connection failure banners in offline mode.
+- **Empirical Device Verification on Pixel 9a (`emulator-5554`)**:
+  - Profile screen renders user stats, ratings, discipline targets, and protection rules cleanly.
+  - Badges tab renders instant progress indicators.
+  - Tracks tab renders Top 200 DSA curriculum with instant problem opening.
+  - YouTube strictly locked during active Focus Mode, trapped back-press tested and verified.
+  - Outside focus sessions with active unlock minutes, YouTube opened smoothly without blocking.
+- **Automated Tests**:
+  - Added `ContractSerializationTest.kt` in `:android-contracts`: verifies JSON serialization and deserialization of `VerifySolveResponse`, `UserSettingsDto`, `ProfileDto`, and `ProblemDto`.
+  - Added `AppBlockerPolicyTest.kt` in `:app`: verifies focus mode lockdown overrides, normal mode unlock allowance, and essential apps whitelist.
+  - Ran `.\gradlew.bat testDebugUnitTest` — 100% passed in both modules.
+  - Ran `npx tsc --noEmit` in `backend/` — 0 errors.
 
 ## Active Decisions
 
@@ -27,15 +37,15 @@ updated: 2026-10-20T00:35:00+05:30
 | Free Unlock Bypass | Disabled during active focus sprint | 2026-10-19 | `AppBlockerService.kt` |
 | Emergency Unlock | Disabled during active focus sprint | 2026-10-19 | `LockActivity.kt` |
 | Back-Press Redirection | Trapped via `OnBackPressedCallback` to route to Dashboard | 2026-10-20 | `LockActivity.kt` |
-| Subagents | Native GSD subagents (`gsd-planner`, `gsd-executor`, `gsd-verifier`) | 2026-10-20 | `.agents/` |
-| MCP Architecture | Global & Workspace Streamable HTTP + Stdio | 2026-10-20 | `mcp_config.json` |
+| Offline Resilience | Instant fallback data in state + local unlock granting | 2026-10-20 | `RealDataScreens.kt`, `ProblemScreen.kt` |
+| Automated Testing | JUnit unit tests for contracts & blocker policy | 2026-10-20 | `android-contracts`, `app` |
 
 ## Next Steps
 
-1. Milestone 3: Social & Cloud Sync Integration (LeetCode/Codeforces real-time scraping & Supabase cloud sync).
-2. Clean compilation and end-to-end verification of backend worker API endpoints.
-3. CodeRabbit review pass once authenticated.
+1. Playwright MCP tests against backend worker endpoints.
+2. CodeRabbit CLI setup on host system if user wants PR/security review automation.
+3. Prepare production release build & proguard rules check.
 
 ## Blockers
 
-*None.* Blocker service, YouTube lockdown, back-press trap, and dashboard navigation are empirically verified on emulator.
+*None.* All modules build, install, test, and run cleanly.

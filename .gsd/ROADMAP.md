@@ -19,8 +19,10 @@
   - [x] Phase 2.3: Accessibility Service active status detection & one-click recovery banner on Dashboard
   - [x] Phase 2.4: Broad package filtering refinement (prevent ignoring `com.android.chrome` or popular apps)
   - [x] Phase 2.5: Manage Restricted Apps quick access directly from Dashboard
+  - [x] Phase 2.6: Offline-first fallback resilience (instant Top 200 catalog, Badges, Profiles, and Local Verification Solve sessions)
 
 - [ ] **Milestone 3: Verification & Automated Testing**
-  - [ ] Phase 3.1: Playwright MCP web testing on dashboard / backend endpoints
-  - [ ] Phase 3.2: Android UI automated test suite
-  - [ ] Phase 3.3: CodeRabbit review run & autofix pass
+  - [x] Phase 3.1: Android Contract Serialization & App Blocker unit tests (`testDebugUnitTest` passing cleanly)
+  - [x] Phase 3.2: Backend Cloudflare Worker TypeScript typechecking (`tsc --noEmit` passing cleanly)
+  - [ ] Phase 3.3: Playwright MCP integration tests for backend & dashboard web surfaces
+  - [ ] Phase 3.4: CodeRabbit CLI host execution and security review pass
