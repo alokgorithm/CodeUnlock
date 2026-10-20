@@ -14,6 +14,7 @@ sealed class AppRoute(val route: String) {
     data object Social : AppRoute("social")
     data object Focus : AppRoute("focus")
     data object SprintRooms : AppRoute("sprint_rooms")
+    data object Settings : AppRoute("settings")
     data object Problem : AppRoute("problem/{problemId}") {
         fun createRoute(problemId: Int): String = "problem/$problemId"
     }

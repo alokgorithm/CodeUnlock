@@ -119,6 +119,7 @@ fun DashboardRoute(
     onOpenFocus: () -> Unit = {},
     onOpenSprintRooms: () -> Unit = {},
     onManageRestrictedApps: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     onLogin: () -> Unit = {},
     onLogout: () -> Unit = {},
     isLoggedIn: Boolean = false,
@@ -161,6 +162,7 @@ fun DashboardRoute(
         onOpenFocus = onOpenFocus,
         onOpenSprintRooms = onOpenSprintRooms,
         onManageRestrictedApps = onManageRestrictedApps,
+        onOpenSettings = onOpenSettings,
         isAccessibilityGranted = isAccessibilityGranted,
         isUsageStatsGranted = isUsageStatsGranted,
         onLogin = onLogin,
@@ -186,6 +188,7 @@ fun DashboardScreen(
     onOpenFocus: () -> Unit = {},
     onOpenSprintRooms: () -> Unit = {},
     onManageRestrictedApps: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     isAccessibilityGranted: Boolean = true,
     isUsageStatsGranted: Boolean = true,
     onLogin: () -> Unit = {},
@@ -216,6 +219,7 @@ fun DashboardScreen(
                     dateLabel = state.dateLabel,
                     userLabel = state.userLabel,
                     onRefresh = onRefresh,
+                    onOpenSettings = onOpenSettings,
                     onLogin = onLogin,
                     onLogout = onLogout,
                     isLoggedIn = isLoggedIn
@@ -358,6 +362,7 @@ private fun DashboardHeader(
     dateLabel: String,
     userLabel: String,
     onRefresh: () -> Unit,
+    onOpenSettings: () -> Unit = {},
     onLogin: () -> Unit = {},
     onLogout: () -> Unit = {},
     isLoggedIn: Boolean = false
@@ -386,7 +391,10 @@ private fun DashboardHeader(
             )
         }
 
-        Row {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onOpenSettings) {
+                Icon(Icons.Default.Settings, contentDescription = "Settings")
+            }
             IconButton(onClick = onRefresh) {
                 Icon(Icons.Default.Refresh, contentDescription = "Refresh")
             }

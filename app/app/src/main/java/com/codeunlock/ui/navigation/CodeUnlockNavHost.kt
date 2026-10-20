@@ -29,6 +29,7 @@ import com.codeunlock.ui.screens.permissions.PermissionSetupRoute
 import com.codeunlock.ui.screens.problem.ProblemRoute
 import com.codeunlock.ui.screens.focus.FocusTimerRoute
 import com.codeunlock.ui.screens.sprint.FocusRoomRoute
+import com.codeunlock.ui.screens.settings.SettingsRoute
 
 // Routes that show the bottom navigation bar
 private val bottomNavRoutes = setOf(
@@ -122,7 +123,12 @@ fun CodeUnlockNavHost(
                     onOpenFocus = { navController.navigate(AppRoute.Focus.route) },
                     onOpenSprintRooms = { navController.navigate(AppRoute.SprintRooms.route) },
                     onManageRestrictedApps = {
-                        navController.navigate(AppRoute.Permissions.route) {
+                        navController.navigate(AppRoute.Settings.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onOpenSettings = {
+                        navController.navigate(AppRoute.Settings.route) {
                             launchSingleTop = true
                         }
                     },
@@ -163,7 +169,7 @@ fun CodeUnlockNavHost(
             }
 
             composable(AppRoute.Profile.route) {
-                ProfileRoute(onBack = { navController.popBackStack() })
+                ProfileRoute(onBack = { navController.popBackStack() }, onOpenSettings = { navController.navigate(AppRoute.Settings.route) })
             }
 
             composable(AppRoute.Wellbeing.route) {
@@ -176,6 +182,10 @@ fun CodeUnlockNavHost(
 
             composable(AppRoute.Social.route) {
                 SocialRoute(onBack = { navController.popBackStack() })
+            }
+
+            composable(AppRoute.Settings.route) {
+                SettingsRoute(onBack = { navController.popBackStack() })
             }
 
             composable(AppRoute.Focus.route) {

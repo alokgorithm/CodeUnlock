@@ -249,7 +249,11 @@ class FeatureViewModel @Inject constructor(
 }
 
 @Composable
-fun ProfileRoute(onBack: () -> Unit, viewModel: FeatureViewModel = hiltViewModel()) {
+fun ProfileRoute(
+    onBack: () -> Unit,
+    onOpenSettings: () -> Unit = {},
+    viewModel: FeatureViewModel = hiltViewModel()
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { viewModel.loadProfile() }
     FeatureScaffold("Profile", onBack, state.loading, state.message) {
@@ -259,7 +263,14 @@ fun ProfileRoute(onBack: () -> Unit, viewModel: FeatureViewModel = hiltViewModel
             InfoCard("Linked accounts", "LeetCode: ${profile.leetcodeUsername ?: "not connected"}\nCodeforces: ${profile.codeforcesHandle ?: "not connected"}")
             InfoCard("Rankings", "Global: #${profile.ranking?.globalRank ?: "-"}\nCollege: #${profile.ranking?.collegeRank ?: "-"}")
             InfoCard("Stats", "Verified solves: ${profile.statsSummary.totalVerifiedSolves}\nStreak: ${profile.statsSummary.currentStreak} days\nWellbeing 30d: ${profile.statsSummary.wellbeingScore30dAvg ?: "-"}")
-            InfoCard("Protection & Rules", "Daily solve target: 2 problems\nUnlock duration: 30 min per verified solve\nFocus lockdown: YouTube & Distracting apps strictly locked")
+            InfoCard("Protection & Rules", "Daily solve target: 2 problems\nUnlock duration: 30 min per verified solve\nFocus lockdown: YouTube & Distracting apps strictly locked") {
+                Button(
+                    onClick = onOpenSettings,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                ) {
+                    Text("⚙️ Configure Settings & Apps")
+                }
+            }
         }
     }
 }
