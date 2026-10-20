@@ -56,14 +56,16 @@ object DailyProgressStore {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val today = getTodayKey()
         val stored = prefs.getInt(KEY_SOLVED_COUNT_PREFIX + today, 0)
-        if (stored > 0) return stored
+        val lcSolves = prefs.getInt(KEY_PLATFORM_SOLVED_PREFIX + "leetcode_" + today, 0)
+        val cfSolves = prefs.getInt(KEY_PLATFORM_SOLVED_PREFIX + "codeforces_" + today, 0)
+        val effective = maxOf(stored, lcSolves + cfSolves)
+        if (effective > 0) return effective
 
         // Check if an active coding unlock session is present today
         val hasActiveCoding = UnlockSessionStore.readActiveSessions(context).any {
             it.unlockType == UnlockSessionStore.UnlockType.CODING
         }
         if (hasActiveCoding) {
-            // Seed count with at least 1 so UI does not display 0/3 when user already earned an unlock
             prefs.edit().putInt(KEY_SOLVED_COUNT_PREFIX + today, 1).apply()
             return 1
         }
@@ -87,7 +89,11 @@ object DailyProgressStore {
     fun setPlatformSolvesToday(context: Context, platform: String, count: Int) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val today = getTodayKey()
-        prefs.edit().putInt(KEY_PLATFORM_SOLVED_PREFIX + platform + "_" + today, count).apply()
+        val currentStored = prefs.getInt(KEY_SOLVED_COUNT_PREFIX + today, 0)
+        prefs.edit()
+            .putInt(KEY_PLATFORM_SOLVED_PREFIX + platform + "_" + today, count)
+            .putInt(KEY_SOLVED_COUNT_PREFIX + today, maxOf(currentStored, count))
+            .apply()
     }
 
     fun getPlatformSolvesToday(context: Context, platform: String): Int {

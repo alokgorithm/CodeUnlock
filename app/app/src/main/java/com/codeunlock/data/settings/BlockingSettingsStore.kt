@@ -164,6 +164,42 @@ object BlockingSettingsStore {
         return read(context).restrictedApps
     }
 
+    fun getAppLimits(context: Context): Map<String, Int> {
+        return read(context).perAppLimits
+    }
+
+    fun setAppLimit(context: Context, packageName: String, limitMinutes: Int) {
+        val current = read(context)
+        val updatedLimits = current.perAppLimits.toMutableMap()
+        if (limitMinutes > 0) {
+            updatedLimits[packageName] = limitMinutes
+        } else {
+            updatedLimits.remove(packageName)
+        }
+        val updatedRestricted = if (limitMinutes > 0) {
+            current.restrictedApps + packageName
+        } else {
+            current.restrictedApps
+        }
+        write(
+            context = context,
+            settings = current.copy(
+                perAppLimits = updatedLimits,
+                restrictedApps = updatedRestricted
+            )
+        )
+    }
+
+    fun removeAppLimit(context: Context, packageName: String) {
+        val current = read(context)
+        val updatedLimits = current.perAppLimits.toMutableMap()
+        updatedLimits.remove(packageName)
+        write(
+            context = context,
+            settings = current.copy(perAppLimits = updatedLimits)
+        )
+    }
+
     fun clear(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().clear().apply()

@@ -10,6 +10,8 @@ sealed class AppRoute(val route: String) {
     data object Badges : AppRoute("badges")
     data object Profile : AppRoute("profile")
     data object Wellbeing : AppRoute("wellbeing")
+    data object UsageStats : AppRoute("usage_stats")
+    data object AppLimits : AppRoute("app_limits")
     data object Rankings : AppRoute("rankings")
     data object Social : AppRoute("social")
     data object Focus : AppRoute("focus")

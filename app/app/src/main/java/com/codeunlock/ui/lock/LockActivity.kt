@@ -80,8 +80,8 @@ class LockActivity : ComponentActivity() {
                 "🧠 Focus Session Active (${FocusTimerService.activeSubject.value})\nDistracting apps are locked to keep you focused!"
             } else if (availability?.hasActiveUnlock == true) {
                 "Unlock time is active. Return to dashboard to continue."
-            } else if (usedMinutesToday > 0 && dailyLimitMinutes > 0) {
-                "You've used ${formatMins(usedMinutesToday)} / ${formatMins(dailyLimitMinutes.toLong())} today."
+            } else if (dailyLimitMinutes > 0) {
+                "Daily limit reached: ${formatMins(usedMinutesToday)} spent of ${formatMins(dailyLimitMinutes.toLong())} allowed today."
             } else {
                 "Solve a coding problem to unlock access."
             },

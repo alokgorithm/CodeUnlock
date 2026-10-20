@@ -53,9 +53,9 @@ object PublicCodingPlatformClient {
     private val httpClient by lazy {
         OkHttpClient.Builder()
             .dns(resilientDns)
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(10, TimeUnit.SECONDS)
-            .writeTimeout(10, TimeUnit.SECONDS)
+            .connectTimeout(6, TimeUnit.SECONDS)
+            .readTimeout(6, TimeUnit.SECONDS)
+            .writeTimeout(6, TimeUnit.SECONDS)
             .build()
     }
 
@@ -338,6 +338,16 @@ object PublicCodingPlatformClient {
             Log.w(TAG, "Failed verifying LeetCode solve: ${e.message}")
             false
         }
+    }
+
+    fun getCachedLeetCode(context: Context, username: String): LeetCodeStatsDto? {
+        val prefs = context.getSharedPreferences(PREFS_CACHE, Context.MODE_PRIVATE)
+        return readCachedLeetCode(prefs, username.trim().removePrefix("@"))
+    }
+
+    fun getCachedCodeforces(context: Context, handle: String): CodeforcesStatsDto? {
+        val prefs = context.getSharedPreferences(PREFS_CACHE, Context.MODE_PRIVATE)
+        return readCachedCodeforces(prefs, handle.trim().removePrefix("@"))
     }
 
     private fun cacheLeetCode(prefs: android.content.SharedPreferences, username: String, stats: LeetCodeStatsDto) {

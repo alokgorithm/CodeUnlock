@@ -138,8 +138,11 @@ object UsageManager {
             )
         }
 
-        // 1. Is this app restricted?
-        if (!settings.restrictedApps.contains(packageName)) {
+        val hasPerAppLimit = settings.perAppLimits.containsKey(packageName)
+        val isRestricted = settings.restrictedApps.contains(packageName)
+
+        // 1. Is this app restricted or does it have an active daily limit?
+        if (!isRestricted && !hasPerAppLimit) {
             return BlockDecision(false, BlockDecision.Reason.NOT_RESTRICTED)
         }
 
@@ -159,8 +162,8 @@ object UsageManager {
         // 4. Resolve this app's daily time budget.
         val limitMinutes = resolveLimit(settings, packageName)
 
-        // No budget (app is restricted with zero allowed screen time) → block.
-        if (limitMinutes <= 0) {
+        // No budget (app is restricted with zero allowed screen time and no per-app limit override) → block.
+        if (limitMinutes <= 0 && isRestricted && !hasPerAppLimit) {
             return BlockDecision(
                 shouldBlock = true,
                 reason = BlockDecision.Reason.RESTRICTED_NO_BUDGET,
@@ -338,4 +341,284 @@ object UsageManager {
 
     private fun String.capitalized() =
         replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+
+    // ── Granular Daily & Weekly Usage Analytics ──────────────────
+
+    data class DayUsageSummary(
+        val dayLabel: String,         // "M", "T", "W", "T", "F", "S", "S"
+        val dayName: String,          // "Mon", "Tue", ...
+        val dateText: String,         // "Tue, 20 Oct"
+        val dayStartMillis: Long,
+        val dayEndMillis: Long,
+        val distractingMinutes: Long,
+        val productiveMinutes: Long,
+        val othersMinutes: Long,
+        val totalMinutes: Long,
+        val isToday: Boolean,
+        val isSelected: Boolean
+    )
+
+    data class AppUsageDetail(
+        val packageName: String,
+        val appName: String,
+        val durationSeconds: Long,
+        val durationFormatted: String,
+        val category: AppCategory,
+        val limitMinutes: Int?,       // null if no limit set
+        val isBlocking: Boolean,      // true if duration >= limitMinutes
+        val distractingSeconds: Long = 0L,
+        val productiveSeconds: Long = 0L,
+        val othersSeconds: Long = 0L
+    )
+
+    data class UsageStatsSummary(
+        val isDaily: Boolean,
+        val headerTitle: String,      // "8h 36m"
+        val headerSubtitle: String,   // "Today - Tue, 20 Oct" or "14 Oct - 20 Oct"
+        val distractingMinutes: Long,
+        val distractingFormatted: String,
+        val productiveMinutes: Long,
+        val productiveFormatted: String,
+        val othersMinutes: Long,
+        val othersFormatted: String,
+        val totalMinutes: Long,
+        val daysOfWeek: List<DayUsageSummary>,
+        val apps: List<AppUsageDetail>
+    )
+
+    fun getUsageStatsSummary(
+        context: Context,
+        isDaily: Boolean,
+        targetDateMillis: Long = System.currentTimeMillis(),
+        filterCategory: AppCategory? = null,
+        searchQuery: String = ""
+    ): UsageStatsSummary {
+        val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+        val pm = context.packageManager
+        val settings = BlockingSettingsStore.read(context)
+
+        if (usm == null || !hasUsageStatsPermission(context)) {
+            val emptyDays = listOf("M", "T", "W", "T", "F", "S", "S").map {
+                DayUsageSummary(it, it, "", 0L, 0L, 0L, 0L, 0L, 0L, isToday = false, isSelected = false)
+            }
+            return UsageStatsSummary(
+                isDaily = isDaily,
+                headerTitle = "0m",
+                headerSubtitle = if (isDaily) "No Usage Permission" else "Permission Required",
+                distractingMinutes = 0L,
+                distractingFormatted = "0m",
+                productiveMinutes = 0L,
+                productiveFormatted = "0m",
+                othersMinutes = 0L,
+                othersFormatted = "0m",
+                totalMinutes = 0L,
+                daysOfWeek = emptyDays,
+                apps = emptyList()
+            )
+        }
+
+        val cal = Calendar.getInstance().apply {
+            timeInMillis = targetDateMillis
+            firstDayOfWeek = Calendar.MONDAY
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK)
+        val daysFromMonday = if (dayOfWeek == Calendar.SUNDAY) 6 else dayOfWeek - Calendar.MONDAY
+        cal.add(Calendar.DAY_OF_MONTH, -daysFromMonday)
+        val mondayMillis = cal.timeInMillis
+
+        val now = System.currentTimeMillis()
+        val todayCal = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }
+        val todayStart = todayCal.timeInMillis
+
+        val dayLabels = listOf("M", "T", "W", "T", "F", "S", "S")
+        val dayNames = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+        val daysOfWeek = mutableListOf<DayUsageSummary>()
+
+        for (i in 0..6) {
+            val dCal = Calendar.getInstance().apply {
+                timeInMillis = mondayMillis
+                add(Calendar.DAY_OF_MONTH, i)
+            }
+            val dStart = dCal.timeInMillis
+            val dEnd = dStart + 86_400_000L - 1L
+
+            var dayDistractingSec = 0L
+            var dayProductiveSec = 0L
+            var dayOthersSec = 0L
+
+            if (dStart <= now) {
+                val queryEnd = minOf(dEnd, now)
+                val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, dStart, queryEnd) ?: emptyList()
+                stats.filter { it.totalTimeInForeground > 0 && isValidPackage(it.packageName) }.forEach { s ->
+                    val cat = AppCategoryStore.getCategory(context, s.packageName, settings.restrictedApps.contains(s.packageName))
+                    val sec = s.totalTimeInForeground / 1000L
+                    when (cat) {
+                        AppCategory.DISTRACTING -> dayDistractingSec += sec
+                        AppCategory.PRODUCTIVE -> dayProductiveSec += sec
+                        AppCategory.OTHERS -> dayOthersSec += sec
+                    }
+                }
+            }
+
+            val dDistractingMin = dayDistractingSec / 60
+            val dProductiveMin = dayProductiveSec / 60
+            val dOthersMin = dayOthersSec / 60
+            val dTotalMin = dDistractingMin + dProductiveMin + dOthersMin
+
+            val dateText = java.text.SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(java.util.Date(dStart))
+            val isToday = dStart == todayStart
+            val isSelected = if (isDaily) {
+                targetDateMillis in dStart..dEnd
+            } else {
+                false
+            }
+
+            daysOfWeek.add(
+                DayUsageSummary(
+                    dayLabel = dayLabels[i],
+                    dayName = dayNames[i],
+                    dateText = dateText,
+                    dayStartMillis = dStart,
+                    dayEndMillis = dEnd,
+                    distractingMinutes = dDistractingMin,
+                    productiveMinutes = dProductiveMin,
+                    othersMinutes = dOthersMin,
+                    totalMinutes = dTotalMin,
+                    isToday = isToday,
+                    isSelected = isSelected
+                )
+            )
+        }
+
+        // Determine range for the list of apps
+        val rangeStart: Long
+        val rangeEnd: Long
+        val headerSubtitle: String
+
+        if (isDaily) {
+            val selCal = Calendar.getInstance().apply {
+                timeInMillis = targetDateMillis
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            }
+            rangeStart = selCal.timeInMillis
+            rangeEnd = minOf(rangeStart + 86_400_000L - 1L, now)
+            val dateFmt = java.text.SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(java.util.Date(rangeStart))
+            headerSubtitle = if (rangeStart == todayStart) "Today - $dateFmt" else dateFmt
+        } else {
+            rangeStart = mondayMillis
+            val sundayEnd = mondayMillis + (7 * 86_400_000L) - 1L
+            rangeEnd = minOf(sundayEnd, now)
+            val startFmt = java.text.SimpleDateFormat("d MMM", Locale.getDefault()).format(java.util.Date(rangeStart))
+            val endFmt = java.text.SimpleDateFormat("d MMM", Locale.getDefault()).format(java.util.Date(sundayEnd))
+            headerSubtitle = "$startFmt - $endFmt"
+        }
+
+        val rangeStats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, rangeStart, rangeEnd) ?: emptyList()
+        val appDurationMap = mutableMapOf<String, Long>()
+
+        rangeStats.filter { it.totalTimeInForeground > 0 && isValidPackage(it.packageName) }.forEach { s ->
+            val prev = appDurationMap.getOrDefault(s.packageName, 0L)
+            appDurationMap[s.packageName] = prev + (s.totalTimeInForeground / 1000L)
+        }
+
+        var totalDistractingSec = 0L
+        var totalProductiveSec = 0L
+        var totalOthersSec = 0L
+
+        val appDetails = appDurationMap.mapNotNull { (pkg, sec) ->
+            val isRestricted = settings.restrictedApps.contains(pkg)
+            val cat = AppCategoryStore.getCategory(context, pkg, isRestricted)
+            when (cat) {
+                AppCategory.DISTRACTING -> totalDistractingSec += sec
+                AppCategory.PRODUCTIVE -> totalProductiveSec += sec
+                AppCategory.OTHERS -> totalOthersSec += sec
+            }
+
+            val label = runCatching {
+                pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+            }.getOrElse { pkg.substringAfterLast('.').capitalized() }
+
+            val limitMin = settings.perAppLimits[pkg]
+            val durationMin = sec / 60
+            val isBlocking = limitMin != null && limitMin > 0 && durationMin >= limitMin
+
+            AppUsageDetail(
+                packageName = pkg,
+                appName = label,
+                durationSeconds = sec,
+                durationFormatted = formatSeconds(sec),
+                category = cat,
+                limitMinutes = limitMin,
+                isBlocking = isBlocking,
+                distractingSeconds = if (cat == AppCategory.DISTRACTING) sec else 0L,
+                productiveSeconds = if (cat == AppCategory.PRODUCTIVE) sec else 0L,
+                othersSeconds = if (cat == AppCategory.OTHERS) sec else 0L
+            )
+        }
+
+        val filteredApps = appDetails
+            .filter { filterCategory == null || it.category == filterCategory }
+            .filter { searchQuery.isBlank() || it.appName.contains(searchQuery, ignoreCase = true) || it.packageName.contains(searchQuery, ignoreCase = true) }
+            .sortedByDescending { it.durationSeconds }
+
+        val totalDistractingMin = totalDistractingSec / 60
+        val totalProductiveMin = totalProductiveSec / 60
+        val totalOthersMin = totalOthersSec / 60
+        val totalMin = totalDistractingMin + totalProductiveMin + totalOthersMin
+
+        return UsageStatsSummary(
+            isDaily = isDaily,
+            headerTitle = formatMinutes(totalMin),
+            headerSubtitle = headerSubtitle,
+            distractingMinutes = totalDistractingMin,
+            distractingFormatted = formatMinutes(totalDistractingMin),
+            productiveMinutes = totalProductiveMin,
+            productiveFormatted = formatMinutes(totalProductiveMin),
+            othersMinutes = totalOthersMin,
+            othersFormatted = formatMinutes(totalOthersMin),
+            totalMinutes = totalMin,
+            daysOfWeek = daysOfWeek,
+            apps = filteredApps
+        )
+    }
+
+    private fun isValidPackage(pkg: String): Boolean {
+        if (pkg.isBlank()) return false
+        if (pkg.startsWith("android")) return false
+        if (pkg.startsWith("com.android.systemui")) return false
+        if (pkg.startsWith("com.google.android.permissioncontroller")) return false
+        return true
+    }
+
+    fun formatMinutes(minutes: Long): String {
+        val h = minutes / 60
+        val m = minutes % 60
+        return when {
+            h > 0 && m > 0 -> "${h}h ${m}m"
+            h > 0 -> "${h}h"
+            else -> "${m}m"
+        }
+    }
+
+    fun formatSeconds(seconds: Long): String {
+        val mins = seconds / 60
+        val hrs = mins / 60
+        val remMins = mins % 60
+        return when {
+            hrs > 0 && remMins > 0 -> "${hrs}h ${remMins}m"
+            hrs > 0 -> "${hrs}h"
+            remMins > 0 -> "${remMins}m"
+            else -> "${seconds}s"
+        }
+    }
+
 }

@@ -25,6 +25,8 @@ import com.codeunlock.ui.screens.feature.RankingsRoute
 import com.codeunlock.ui.screens.feature.SocialRoute
 import com.codeunlock.ui.screens.feature.TracksRoute
 import com.codeunlock.ui.screens.feature.WellbeingRoute
+import com.codeunlock.ui.screens.usage.UsageStatsRoute
+import com.codeunlock.ui.screens.limits.AppLimitsRoute
 import com.codeunlock.ui.screens.lock.LockRoute
 import com.codeunlock.ui.screens.login.LoginRoute
 import com.codeunlock.ui.screens.permissions.PermissionSetupRoute
@@ -144,13 +146,13 @@ fun CodeUnlockNavHost(
                     onOpenTracks = { navController.navigate(AppRoute.Tracks.route) },
                     onOpenBadges = { navController.navigate(AppRoute.Badges.route) },
                     onOpenProfile = { navController.navigate(AppRoute.Profile.route) },
-                    onOpenWellbeing = { navController.navigate(AppRoute.Wellbeing.route) },
+                    onOpenWellbeing = { navController.navigate(AppRoute.UsageStats.route) },
                     onOpenRankings = { navController.navigate(AppRoute.Rankings.route) },
                     onOpenSocial = { navController.navigate(AppRoute.Social.route) },
                     onOpenFocus = { navController.navigate(AppRoute.Focus.route) },
                     onOpenSprintRooms = { navController.navigate(AppRoute.SprintRooms.route) },
                     onManageRestrictedApps = {
-                        navController.navigate(AppRoute.Settings.route) {
+                        navController.navigate(AppRoute.AppLimits.route) {
                             launchSingleTop = true
                         }
                     },
@@ -200,7 +202,24 @@ fun CodeUnlockNavHost(
             }
 
             composable(AppRoute.Wellbeing.route) {
-                WellbeingRoute(onBack = { navController.popBackStack() })
+                UsageStatsRoute(
+                    onBack = { navController.popBackStack() },
+                    onOpenAppLimits = { navController.navigate(AppRoute.AppLimits.route) }
+                )
+            }
+
+            composable(AppRoute.UsageStats.route) {
+                UsageStatsRoute(
+                    onBack = { navController.popBackStack() },
+                    onOpenAppLimits = { navController.navigate(AppRoute.AppLimits.route) }
+                )
+            }
+
+            composable(AppRoute.AppLimits.route) {
+                AppLimitsRoute(
+                    onBack = { navController.popBackStack() },
+                    onOpenUsageStats = { navController.navigate(AppRoute.UsageStats.route) }
+                )
             }
 
             composable(AppRoute.Rankings.route) {

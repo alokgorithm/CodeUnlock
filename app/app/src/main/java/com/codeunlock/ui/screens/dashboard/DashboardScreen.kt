@@ -1006,12 +1006,23 @@ class DashboardViewModel @Inject constructor(
         val localSolvesToday = DailyProgressStore.getProblemsSolvedToday(context)
         val initialHabits = UsageManager.calculateLiveStats(context)
 
+        // Read cached platform stats immediately so UI renders real data without delay
+        val cachedLc = localSettings.leetcodeUsername?.let { PublicCodingPlatformClient.getCachedLeetCode(context, it) }
+        val cachedCf = localSettings.codeforcesHandle?.let { PublicCodingPlatformClient.getCachedCodeforces(context, it) }
+        val cachedSolves = (cachedLc?.problemsSolvedToday ?: 0) + (cachedCf?.problemsSolvedToday ?: 0)
+        val initialSolves = maxOf(localSolvesToday, cachedSolves)
+
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
-                problemsSolvedToday = localSolvesToday,
+                problemsSolvedToday = initialSolves,
                 dailyTarget = localSettings.dailySolveTarget,
                 remainingUnlockMinutes = localRemainingUnlockMinutes,
+                currentStreak = if (initialSolves > 0) 1 else _uiState.value.currentStreak,
+                leetcodeSolvedLabel = cachedLc?.totalSolved?.takeIf { it > 0 }?.toString() ?: _uiState.value.leetcodeSolvedLabel,
+                leetcodeDifficultyBreakdown = cachedLc.formatBreakdown().takeIf { it != "—" } ?: _uiState.value.leetcodeDifficultyBreakdown,
+                codeforcesRatingLabel = cachedCf?.currentRating?.takeIf { it > 0 }?.toString() ?: _uiState.value.codeforcesRatingLabel,
+                codeforcesRankLabel = cachedCf?.rank?.takeIf { it.isNotBlank() } ?: _uiState.value.codeforcesRankLabel,
                 restrictedApps = localSettings.restrictedApps.map(::displayNameForPackage),
                 wellbeingScoreLabel = if (initialHabits.totalScreenTimeMinutes > 0 || initialHabits.pickupCount > 0) "${initialHabits.liveScore}" else "100",
                 screenTimeLabel = initialHabits.totalScreenTimeFormatted,
@@ -1080,10 +1091,14 @@ class DashboardViewModel @Inject constructor(
             val resolvedPickups = wellbeing?.today?.pickupCount?.toString()
                 ?: "${localHabits.pickupCount}"
 
-            val lcSolves = leetcode?.problemsSolvedToday ?: 0
-            val cfSolves = codeforces?.problemsSolvedToday ?: 0
+            val finalLc = leetcode ?: cachedLc
+            val finalCf = codeforces ?: cachedCf
+            val lcSolves = finalLc?.problemsSolvedToday ?: 0
+            val cfSolves = finalCf?.problemsSolvedToday ?: 0
             val backendSolves = dailyProgress?.problemsSolved ?: 0
             val effectiveSolves = maxOf(localSolvesToday, backendSolves, lcSolves + cfSolves)
+            val effectiveStreak = progress?.currentStreak?.takeIf { it > 0 }
+                ?: if (effectiveSolves > 0) 1 else 0
 
             _uiState.value = DashboardUiState(
                 isLoading = false,
@@ -1098,12 +1113,12 @@ class DashboardViewModel @Inject constructor(
                     localSettings = localSettings,
                     localRemainingUnlockMinutes = localRemainingUnlockMinutes
                 ),
-                currentStreak = progress?.currentStreak ?: 0,
+                currentStreak = effectiveStreak,
                 globalRankLabel = rankings?.myRank?.rank?.let { "#$it" } ?: "—",
-                leetcodeSolvedLabel = leetcode?.totalSolved?.takeIf { it > 0 }?.toString() ?: "—",
-                leetcodeDifficultyBreakdown = leetcode.formatBreakdown(),
-                codeforcesRatingLabel = codeforces?.currentRating?.takeIf { it > 0 }?.toString() ?: "—",
-                codeforcesRankLabel = codeforces?.rank ?: "No sync yet",
+                leetcodeSolvedLabel = finalLc?.totalSolved?.takeIf { it > 0 }?.toString() ?: "—",
+                leetcodeDifficultyBreakdown = finalLc.formatBreakdown(),
+                codeforcesRatingLabel = finalCf?.currentRating?.takeIf { it > 0 }?.toString() ?: "—",
+                codeforcesRankLabel = finalCf?.rank ?: "No sync yet",
                 wellbeingScoreLabel = resolvedScore,
                 screenTimeLabel = resolvedScreenTime,
                 pickupCountLabel = resolvedPickups,
