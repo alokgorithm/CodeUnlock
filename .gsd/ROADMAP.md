@@ -26,3 +26,10 @@
   - [x] Phase 3.2: Backend Cloudflare Worker TypeScript typechecking (`tsc --noEmit` passing cleanly)
   - [ ] Phase 3.3: Playwright MCP integration tests for backend & dashboard web surfaces
   - [ ] Phase 3.4: CodeRabbit CLI host execution and security review pass
+
+- [ ] **Milestone 4: Multi-Persona & Non-Coding Knowledge Tracks (Future)**
+  - Detailed design & technical plan: [FUTURE_PLAN.md](../FUTURE_PLAN.md)
+  - [ ] Phase 4.1: Persona selection during onboarding and settings (`UserPersona`: Coder, Exam Aspirant, Language Learner, Trivia)
+  - [ ] Phase 4.2: Modular `ChallengeProvider` strategy engine (MCQs, Flashcards, Coding Editor)
+  - [ ] Phase 4.3: Dynamic dashboard metrics adapting to user persona
+  - [ ] Phase 4.4: Offline Room database for non-coding question banks & flashcard decks
