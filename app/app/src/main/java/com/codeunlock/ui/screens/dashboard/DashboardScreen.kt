@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,6 +20,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -249,15 +252,43 @@ fun DashboardScreen(
                 ProgressHero(
                     solved = state.problemsSolvedToday,
                     target = state.dailyTarget,
-                    remainingMinutes = state.remainingUnlockMinutes
+                    remainingMinutes = state.remainingUnlockMinutes,
+                    onSolveClick = {
+                        val id = state.nextProblem?.id ?: 1
+                        onOpenProblem(id)
+                    }
                 )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onOpenFocus,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(18.dp)
+                    ) {
+                        Icon(Icons.Default.Headphones, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Focus Mode")
+                    }
+                    OutlinedButton(
+                        onClick = onOpenSprintRooms,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(18.dp)
+                    ) {
+                        Icon(Icons.Default.Group, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Sprint Rooms")
+                    }
+                }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     MetricCard(
                         modifier = Modifier.weight(1f),
                         title = "Streak",
                         value = "${state.currentStreak}",
-                        subtitle = "days",
+                        subtitle = "days active",
                         icon = Icons.Default.Whatshot,
                         accent = Color(0xFFFF8A65)
                     )
@@ -271,13 +302,13 @@ fun DashboardScreen(
                     )
                 }
 
-                SectionTitle("Platform Stats")
+                SectionTitle("Coding Platforms")
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     PlatformCard(
                         modifier = Modifier.weight(1f),
                         title = "LeetCode",
                         primary = state.leetcodeSolvedLabel,
-                        secondary = state.leetcodeDifficultyBreakdown,
+                        secondary = state.leetcodeUsername?.let { "@$it" } ?: state.leetcodeDifficultyBreakdown,
                         accent = Color(0xFFFF9800),
                         icon = Icons.Default.Code
                     )
@@ -285,67 +316,28 @@ fun DashboardScreen(
                         modifier = Modifier.weight(1f),
                         title = "Codeforces",
                         primary = state.codeforcesRatingLabel,
-                        secondary = state.codeforcesRankLabel,
+                        secondary = state.codeforcesHandle?.let { "@$it" } ?: state.codeforcesRankLabel,
                         accent = Color(0xFF64B5F6),
                         icon = Icons.Default.TrendingUp
                     )
                 }
 
-                SectionTitle("Next Problem")
+                SectionTitle("Today's Problem")
                 NextProblemCard(
                     problem = state.nextProblem,
                     onOpenProblem = onOpenProblem
                 )
 
-                SectionTitle("Screen Time & Wellbeing")
+                SectionTitle("Protection & Screen Time")
                 WellbeingCard(
                     wellbeingScore = state.wellbeingScoreLabel,
                     screenTime = state.screenTimeLabel,
                     pickupCount = state.pickupCountLabel,
+                    restrictedAppsCount = state.restrictedApps.size,
                     onClick = onOpenWellbeing
                 )
 
-                SectionTitle("Quick Actions")
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Button(
-                        onClick = {
-                            val id = state.nextProblem?.id ?: 1
-                            onOpenProblem(id)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(18.dp)
-                    ) {
-                        Icon(Icons.Default.Code, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Solve Next Problem")
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = onOpenFocus,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(18.dp)
-                        ) {
-                            Text("🎧 Focus Timer")
-                        }
-                        OutlinedButton(
-                            onClick = onOpenSprintRooms,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(18.dp)
-                        ) {
-                            Text("👥 Sprint Rooms")
-                        }
-                    }
-
-                    QuickActionRow("Tracks", "Badges", onOpenTracks, onOpenBadges)
-                    QuickActionRow("Rankings", "Screen Time & Apps", onOpenRankings, onOpenWellbeing)
-                    QuickActionRow("Social", "Profile", onOpenSocial, onOpenProfile)
-                }
-
-                SectionTitle("Restricted Apps")
+                SectionTitle("Restricted Apps (${state.restrictedApps.size})")
                 RestrictedAppsCard(apps = state.restrictedApps, onManageApps = onManageRestrictedApps)
 
                 if (!isLoggedIn) {
@@ -477,7 +469,8 @@ private fun ErrorBanner(message: String) {
 private fun ProgressHero(
     solved: Int,
     target: Int,
-    remainingMinutes: Int
+    remainingMinutes: Int,
+    onSolveClick: () -> Unit = {}
 ) {
     val safeTarget = if (target <= 0) 1 else target
     val progress = (solved.toFloat() / safeTarget.toFloat()).coerceIn(0f, 1f)
@@ -552,7 +545,7 @@ private fun ProgressHero(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "${(target - solved).coerceAtLeast(0)} more to hit target",
+                        text = if (solved >= target) "Daily target reached! 🎉" else "${(target - solved).coerceAtLeast(0)} more to unlock phone",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
                     )
@@ -562,6 +555,16 @@ private fun ProgressHero(
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold
                     )
+                }
+
+                Button(
+                    onClick = onSolveClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Default.Code, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Solve Problem to Unlock (30m)", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -733,6 +736,7 @@ private fun WellbeingCard(
     wellbeingScore: String,
     screenTime: String,
     pickupCount: String,
+    restrictedAppsCount: Int = 0,
     onClick: () -> Unit = {}
 ) {
     Card(
@@ -770,18 +774,31 @@ private fun WellbeingCard(
                 )
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = screenTime,
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 SmallStatPill(
                     title = "Habit Score",
-                    value = wellbeingScore
-                )
-                SmallStatPill(
-                    title = "Screen Time",
-                    value = screenTime
+                    value = wellbeingScore,
+                    modifier = Modifier.weight(1f)
                 )
                 SmallStatPill(
                     title = "Pickups",
-                    value = pickupCount
+                    value = pickupCount,
+                    modifier = Modifier.weight(1f)
+                )
+                SmallStatPill(
+                    title = "Protected",
+                    value = "$restrictedAppsCount Apps",
+                    modifier = Modifier.weight(1f)
                 )
             }
 
@@ -797,10 +814,11 @@ private fun WellbeingCard(
 @Composable
 private fun SmallStatPill(
     title: String,
-    value: String
+    value: String,
+    modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(18.dp))
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
             .padding(horizontal = 14.dp, vertical = 10.dp)
@@ -942,7 +960,9 @@ data class DashboardUiState(
     val screenTimeLabel: String = "—",
     val pickupCountLabel: String = "—",
     val restrictedApps: List<String> = emptyList(),
-    val nextProblem: ProblemCardModel? = null
+    val nextProblem: ProblemCardModel? = null,
+    val leetcodeUsername: String? = null,
+    val codeforcesHandle: String? = null
 ) {
     val isEmpty: Boolean
         get() = nextProblem == null &&
@@ -993,7 +1013,9 @@ class DashboardViewModel @Inject constructor(
                 pickupCountLabel = "${initialHabits.pickupCount}",
                 userLabel = session.email ?: "CodeUnlock User",
                 dateLabel = todayLabel(),
-                errorMessage = null
+                errorMessage = null,
+                leetcodeUsername = localSettings.leetcodeUsername,
+                codeforcesHandle = localSettings.codeforcesHandle
             )
 
             val settingsDeferred = async { repository.getSettings() }
@@ -1060,7 +1082,9 @@ class DashboardViewModel @Inject constructor(
                 pickupCountLabel = resolvedPickups,
                 restrictedApps = settings?.restrictedApps?.takeIf { it.isNotEmpty() }
                     ?: localSettings.restrictedApps.map(::displayNameForPackage),
-                nextProblem = nextProblem.toProblemCardModel()
+                nextProblem = nextProblem.toProblemCardModel(),
+                leetcodeUsername = localSettings.leetcodeUsername,
+                codeforcesHandle = localSettings.codeforcesHandle
             )
         }
     }

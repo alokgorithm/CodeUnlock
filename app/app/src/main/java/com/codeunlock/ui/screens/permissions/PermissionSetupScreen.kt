@@ -398,6 +398,8 @@ fun PermissionSetupRoute(
             dailySolveTarget = settingsState.dailySolveTarget,
             emergencyUnlockEnabled = settingsState.emergencyUnlockEnabled,
             freeUnlockEnabled = settingsState.freeUnlockEnabled,
+            leetcodeUsername = settingsState.leetcodeUsername.takeIf { it.isNotBlank() },
+            codeforcesHandle = settingsState.codeforcesHandle.takeIf { it.isNotBlank() },
         )
     }
 

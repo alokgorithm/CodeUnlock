@@ -26,6 +26,8 @@ object BlockingSettingsStore {
     const val KEY_FREE_UNLOCK_ENABLED = "free_unlock_enabled"
     const val KEY_FIRST_SETUP_COMPLETE = "is_first_setup_complete"
     const val KEY_LAST_SAVED_AT = "last_saved_at"
+    const val KEY_LEETCODE_USERNAME = "leetcode_username"
+    const val KEY_CODEFORCES_HANDLE = "codeforces_handle"
 
     private const val DEFAULT_USAGE_MODE = "strict_lock"
     private const val DEFAULT_DAILY_SOLVE_TARGET = 3
@@ -38,7 +40,9 @@ object BlockingSettingsStore {
         val emergencyUnlockEnabled: Boolean = true,
         val freeUnlockEnabled: Boolean = false,
         val isFirstSetupComplete: Boolean = false,
-        val lastSavedAt: Long = 0L
+        val lastSavedAt: Long = 0L,
+        val leetcodeUsername: String? = null,
+        val codeforcesHandle: String? = null
     ) {
         val hasRestrictedApps: Boolean
             get() = restrictedApps.isNotEmpty()
@@ -72,7 +76,9 @@ object BlockingSettingsStore {
             emergencyUnlockEnabled = prefs.getBoolean(KEY_EMERGENCY_UNLOCK_ENABLED, true),
             freeUnlockEnabled = prefs.getBoolean(KEY_FREE_UNLOCK_ENABLED, true),
             isFirstSetupComplete = prefs.getBoolean(KEY_FIRST_SETUP_COMPLETE, false),
-            lastSavedAt = prefs.getLong(KEY_LAST_SAVED_AT, 0L)
+            lastSavedAt = prefs.getLong(KEY_LAST_SAVED_AT, 0L),
+            leetcodeUsername = prefs.getString(KEY_LEETCODE_USERNAME, null)?.takeIf { it.isNotBlank() },
+            codeforcesHandle = prefs.getString(KEY_CODEFORCES_HANDLE, null)?.takeIf { it.isNotBlank() }
         )
     }
 
@@ -101,6 +107,8 @@ object BlockingSettingsStore {
             .putBoolean(KEY_FREE_UNLOCK_ENABLED, settings.freeUnlockEnabled)
             .putBoolean(KEY_FIRST_SETUP_COMPLETE, settings.isFirstSetupComplete)
             .putLong(KEY_LAST_SAVED_AT, settings.lastSavedAt)
+            .putString(KEY_LEETCODE_USERNAME, settings.leetcodeUsername)
+            .putString(KEY_CODEFORCES_HANDLE, settings.codeforcesHandle)
             .apply()
     }
 
@@ -111,8 +119,11 @@ object BlockingSettingsStore {
         dailySolveTarget: Int,
         emergencyUnlockEnabled: Boolean,
         freeUnlockEnabled: Boolean,
-        perAppLimits: Map<String, Int> = emptyMap()
+        perAppLimits: Map<String, Int> = emptyMap(),
+        leetcodeUsername: String? = null,
+        codeforcesHandle: String? = null
     ) {
+        val existing = read(context)
         write(
             context = context,
             settings = BlockingSettings(
@@ -123,7 +134,24 @@ object BlockingSettingsStore {
                 emergencyUnlockEnabled = emergencyUnlockEnabled,
                 freeUnlockEnabled = freeUnlockEnabled,
                 isFirstSetupComplete = true,
-                lastSavedAt = System.currentTimeMillis()
+                lastSavedAt = System.currentTimeMillis(),
+                leetcodeUsername = leetcodeUsername ?: existing.leetcodeUsername,
+                codeforcesHandle = codeforcesHandle ?: existing.codeforcesHandle
+            )
+        )
+    }
+
+    fun updatePlatformHandles(
+        context: Context,
+        leetcode: String?,
+        codeforces: String?
+    ) {
+        val current = read(context)
+        write(
+            context = context,
+            settings = current.copy(
+                leetcodeUsername = leetcode?.trim()?.takeIf { it.isNotBlank() },
+                codeforcesHandle = codeforces?.trim()?.takeIf { it.isNotBlank() }
             )
         )
     }

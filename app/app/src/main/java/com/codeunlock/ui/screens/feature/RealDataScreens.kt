@@ -1,5 +1,13 @@
 package com.codeunlock.ui.screens.feature
 
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Settings
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -229,6 +237,16 @@ class FeatureViewModel @Inject constructor(
         }
     }
 
+    fun updatePlatformLinks(leetcode: String?, codeforces: String?) {
+        viewModelScope.launch {
+            val req = com.codeunlock.api.dto.UpdateProfileRequest(
+                leetcodeUsername = leetcode?.takeIf { it.isNotBlank() },
+                codeforcesHandle = codeforces?.takeIf { it.isNotBlank() }
+            )
+            runCatching { repository.updateProfile(req) }
+        }
+    }
+
     private fun launchLoad(block: suspend (FeatureUiState) -> FeatureUiState) {
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, message = null)
@@ -245,42 +263,391 @@ fun ProfileRoute(
     viewModel: FeatureViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val localSettings = remember { BlockingSettingsStore.read(context) }
+    var localSettings by remember { mutableStateOf(BlockingSettingsStore.read(context)) }
     val localHabits = remember { UsageManager.calculateLiveStats(context) }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    
     LaunchedEffect(Unit) { viewModel.loadProfile() }
-    FeatureScaffold("Profile", onBack, state.loading, state.message) {
-        val profile = state.profile
-        if (profile == null) EmptyText("Profile data is not available yet.") else {
-            InfoCard(profile.username, profile.email)
-            InfoCard(
-                "Linked accounts",
-                "LeetCode: ${profile.leetcodeUsername ?: "Not connected"}\nCodeforces: ${profile.codeforcesHandle ?: "Not connected"}"
-            )
-            InfoCard(
-                "Rankings",
-                "Global: ${profile.ranking?.globalRank?.let { "#$it" } ?: "Not ranked yet"}\nCollege: ${profile.ranking?.collegeRank?.let { "#$it" } ?: "Not ranked yet"}"
-            )
-            InfoCard(
-                "Stats",
-                "Verified solves: ${profile.statsSummary.totalVerifiedSolves}\nStreak: ${profile.statsSummary.currentStreak} days\nLive Wellbeing Score: ${localHabits.liveScore}/100\nScreen time today: ${localHabits.totalScreenTimeFormatted}"
-            )
-            val modeLabel = when (localSettings.usageMode) {
-                "strict_lock" -> "Strict Lock (Zero Quota)"
-                "hardcore" -> "Hardcore (Locked until solved)"
-                "focused" -> "Focused (30m limit)"
-                "relaxed" -> "Relaxed (60m limit)"
-                else -> localSettings.usageMode.replaceFirstChar { it.uppercase() }
-            }
-            InfoCard(
-                "Protection & Rules",
-                "Daily solve target: ${localSettings.dailySolveTarget} problems\nDiscipline mode: $modeLabel\nRestricted apps: ${localSettings.restrictedApps.size} apps monitored\nUnlock duration: 30 min per verified solve"
+
+    var showEditHandlesDialog by remember { mutableStateOf(false) }
+    var leetcodeDialogInput by remember { mutableStateOf(localSettings.leetcodeUsername.orEmpty()) }
+    var codeforcesDialogInput by remember { mutableStateOf(localSettings.codeforcesHandle.orEmpty()) }
+
+    val resolvedLeetcode = localSettings.leetcodeUsername ?: state.profile?.leetcodeUsername
+    val resolvedCodeforces = localSettings.codeforcesHandle ?: state.profile?.codeforcesHandle
+
+    FeatureScaffold("Profile & Account", onBack, state.loading, state.message) {
+        val profile = state.profile ?: FallbackData.defaultProfile()
+
+        // 1. Hero Profile Header Card
+        ProfileHeroCard(
+            username = profile.username,
+            email = profile.email,
+            avatarEmoji = profile.avatarEmoji.ifBlank { "⚡" },
+            isOnline = state.profile != null && profile.id != "local-user"
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 2. Linked Coding Platforms Card (LeetCode & Codeforces)
+        Card(
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Code,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "Linked Coding Accounts",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    TextButton(
+                        onClick = {
+                            leetcodeDialogInput = resolvedLeetcode.orEmpty()
+                            codeforcesDialogInput = resolvedCodeforces.orEmpty()
+                            showEditHandlesDialog = true
+                        }
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Edit", style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+
+                PlatformAccountRow(
+                    platformName = "LeetCode",
+                    handle = resolvedLeetcode,
+                    badgeColor = Color(0xFFFFA116),
+                    icon = Icons.Default.Code,
+                    placeholder = "Not linked — Tap Edit to connect"
+                )
+
+                PlatformAccountRow(
+                    platformName = "Codeforces",
+                    handle = resolvedCodeforces,
+                    badgeColor = Color(0xFF188CE5),
+                    icon = Icons.Default.TrendingUp,
+                    placeholder = "Not linked — Tap Edit to connect"
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 3. Performance & Stats 4-Grid
+        Text(
+            text = "Discipline & Performance",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            SmallStatPill(
+                title = "Verified Solves",
+                value = "${profile.statsSummary.totalVerifiedSolves}",
+                modifier = Modifier.weight(1f)
+            )
+            SmallStatPill(
+                title = "Streak",
+                value = "${profile.statsSummary.currentStreak}d",
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            SmallStatPill(
+                title = "Live Habit Score",
+                value = "${localHabits.liveScore}/100",
+                modifier = Modifier.weight(1f)
+            )
+            SmallStatPill(
+                title = "Screen Time Today",
+                value = localHabits.totalScreenTimeFormatted,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 4. Protection & Rules Card
+        val modeLabel = when (localSettings.usageMode) {
+            "strict_lock" -> "Strict Lock (Zero Quota)"
+            "hardcore" -> "Hardcore (Locked until solved)"
+            "focused" -> "Focused (30m limit)"
+            "relaxed" -> "Relaxed (60m limit)"
+            else -> localSettings.usageMode.replaceFirstChar { it.uppercase() }
+        }
+
+        Card(
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Shield,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "Protection & Rules",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Text(
+                    text = "• Daily solve target: ${localSettings.dailySolveTarget} problems\n" +
+                           "• Discipline mode: $modeLabel\n" +
+                           "• Restricted apps: ${localSettings.restrictedApps.size} apps monitored\n" +
+                           "• Reward: 30 min unlocked per verified problem",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 22.sp
+                )
+
                 Button(
                     onClick = onOpenSettings,
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
                 ) {
-                    Text("⚙️ Configure Settings & Apps")
+                    Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Configure Rules & Apps")
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+
+    if (showEditHandlesDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditHandlesDialog = false },
+            title = {
+                Text(
+                    text = "Link Coding Profiles",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text(
+                        text = "Enter your handles to verify your problem solves and sync rankings:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = leetcodeDialogInput,
+                        onValueChange = { leetcodeDialogInput = it },
+                        label = { Text("LeetCode Username") },
+                        placeholder = { Text("e.g. alokgorithm") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = codeforcesDialogInput,
+                        onValueChange = { codeforcesDialogInput = it },
+                        label = { Text("Codeforces Handle") },
+                        placeholder = { Text("e.g. tourist") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val newLc = leetcodeDialogInput.trim().takeIf { it.isNotBlank() }
+                        val newCf = codeforcesDialogInput.trim().takeIf { it.isNotBlank() }
+                        BlockingSettingsStore.updatePlatformHandles(context, newLc, newCf)
+                        localSettings = BlockingSettingsStore.read(context)
+                        viewModel.updatePlatformLinks(newLc, newCf)
+                        showEditHandlesDialog = false
+                    }
+                ) {
+                    Text("Save Handles")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditHandlesDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun ProfileHeroCard(
+    username: String,
+    email: String,
+    avatarEmoji: String,
+    isOnline: Boolean
+) {
+    Card(
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(20.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = avatarEmoji,
+                    fontSize = 32.sp
+                )
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = username,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = email,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isOnline) Color(0xFF2E7D32).copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp)
+                ) {
+                    Text(
+                        text = if (isOnline) "● Cloud Synced" else "○ Local / Offline Mode",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isOnline) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlatformAccountRow(
+    platformName: String,
+    handle: String?,
+    badgeColor: Color,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    placeholder: String
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 14.dp, vertical = 12.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(badgeColor.copy(alpha = 0.16f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = badgeColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Column {
+                    Text(
+                        text = platformName,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = if (handle.isNullOrBlank()) placeholder else "@$handle",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (handle.isNullOrBlank()) FontWeight.Normal else FontWeight.Bold,
+                        color = if (handle.isNullOrBlank()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+
+            if (!handle.isNullOrBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0xFF2E7D32).copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        text = "Linked ✓",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF4CAF50),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
                 }
             }
         }

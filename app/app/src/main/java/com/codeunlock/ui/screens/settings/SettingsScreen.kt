@@ -49,6 +49,19 @@ class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
+    fun syncPlatformLinks(leetcode: String?, codeforces: String?) {
+        viewModelScope.launch {
+            runCatching {
+                repository.updateProfile(
+                    com.codeunlock.api.dto.UpdateProfileRequest(
+                        leetcodeUsername = leetcode?.takeIf { it.isNotBlank() },
+                        codeforcesHandle = codeforces?.takeIf { it.isNotBlank() }
+                    )
+                )
+            }
+        }
+    }
+
     fun syncToBackend(
         usageMode: String,
         dailyTarget: Int,
@@ -90,6 +103,8 @@ fun SettingsRoute(
     var freeUnlock by rememberSaveable { mutableStateOf(initialSettings.freeUnlockEnabled) }
     var settingsGuard by rememberSaveable { mutableStateOf(initialGuard) }
     var reelsBlock by rememberSaveable { mutableStateOf(initialReels.reelsBlocked || initialReels.shortsBlocked) }
+    var leetcodeUsername by rememberSaveable { mutableStateOf(initialSettings.leetcodeUsername.orEmpty()) }
+    var codeforcesHandle by rememberSaveable { mutableStateOf(initialSettings.codeforcesHandle.orEmpty()) }
 
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
@@ -136,6 +151,8 @@ fun SettingsRoute(
                                 freeUnlock = freeUnlock,
                                 settingsGuard = settingsGuard,
                                 reelsBlock = reelsBlock,
+                                leetcodeUsername = leetcodeUsername,
+                                codeforcesHandle = codeforcesHandle,
                                 onSaved = onBack
                             )
                         }
@@ -193,6 +210,38 @@ fun SettingsRoute(
         ) {
             item {
                 Spacer(Modifier.height(4.dp))
+                SectionHeader("Coding Handles")
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                ) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = "Linked handles for solve verification and rankings",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        OutlinedTextField(
+                            value = leetcodeUsername,
+                            onValueChange = { leetcodeUsername = it },
+                            label = { Text("LeetCode Username") },
+                            placeholder = { Text("e.g. alokgorithm") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = codeforcesHandle,
+                            onValueChange = { codeforcesHandle = it },
+                            label = { Text("Codeforces Handle") },
+                            placeholder = { Text("e.g. tourist") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+
+            item {
                 SectionHeader("Discipline Mode")
                 ModeSelector(
                     selectedMode = usageMode,
@@ -531,6 +580,8 @@ private fun saveSettings(
     freeUnlock: Boolean,
     settingsGuard: Boolean,
     reelsBlock: Boolean,
+    leetcodeUsername: String = "",
+    codeforcesHandle: String = "",
     onSaved: () -> Unit
 ) {
     val existing = BlockingSettingsStore.read(context)
@@ -541,7 +592,9 @@ private fun saveSettings(
         emergencyUnlockEnabled = emergencyUnlock,
         freeUnlockEnabled = freeUnlock,
         isFirstSetupComplete = true,
-        lastSavedAt = System.currentTimeMillis()
+        lastSavedAt = System.currentTimeMillis(),
+        leetcodeUsername = leetcodeUsername.trim().takeIf { it.isNotBlank() },
+        codeforcesHandle = codeforcesHandle.trim().takeIf { it.isNotBlank() }
     )
 
     BlockingSettingsStore.write(context, updated)
@@ -563,6 +616,10 @@ private fun saveSettings(
         restrictedApps = restrictedApps.toList(),
         emergencyEnabled = emergencyUnlock,
         freeEnabled = freeUnlock
+    )
+    viewModel.syncPlatformLinks(
+        leetcode = leetcodeUsername.trim().takeIf { it.isNotBlank() },
+        codeforces = codeforcesHandle.trim().takeIf { it.isNotBlank() }
     )
 
     Toast.makeText(context, "Settings saved successfully! ✓", Toast.LENGTH_SHORT).show()
