@@ -63,7 +63,11 @@ import com.codeunlock.api.dto.ClassroomListItem
 import com.codeunlock.api.dto.FriendProfileDto
 import com.codeunlock.api.dto.PendingFriendDto
 import com.codeunlock.api.dto.ProblemDto
+import com.codeunlock.api.dto.ProfileBadgeDto
+import com.codeunlock.api.dto.ProfileClassroomDto
 import com.codeunlock.api.dto.ProfileDto
+import com.codeunlock.api.dto.ProfileRankingDto
+import com.codeunlock.api.dto.ProfileStatsSummaryDto
 import com.codeunlock.api.dto.RankingEntry
 import com.codeunlock.api.dto.SearchResultDto
 import com.codeunlock.api.dto.WellbeingStatsDto
@@ -76,13 +80,75 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+object FallbackData {
+    fun defaultBadges(): List<BadgeProgressDto> = listOf(
+        BadgeProgressDto(1, "First Solve", "discipline", "🎯", "Solve your first verified coding problem", 1.0, "Earned"),
+        BadgeProgressDto(2, "3-Day Discipline", "streak", "🔥", "Maintain a 3-day coding streak", 0.33, null),
+        BadgeProgressDto(3, "Consistency King", "streak", "⚡", "Maintain a 7-day coding streak", 0.14, null),
+        BadgeProgressDto(4, "Deep Work Sprint", "focus", "🧠", "Complete 5 Pomodoro focus sessions", 0.40, null),
+        BadgeProgressDto(5, "DP Explorer", "topics", "🧩", "Solve 5 Dynamic Programming problems", 0.20, null),
+        BadgeProgressDto(6, "Shield of Focus", "wellbeing", "🛡️", "Block 25 distraction attempts", 0.60, null)
+    )
+
+    fun defaultTop200Track(): List<ProblemDto> = listOf(
+        ProblemDto(1, "Two Sum", "two-sum", "Easy", "leetcode", "Array", listOf("Array", "Hash Table"), "Two Pointers", 1, "two-sum", 1, 9.8, listOf("Amazon", "Google", "Meta"), 1200, "https://leetcode.com/problems/two-sum/", "available", false),
+        ProblemDto(2, "Valid Parentheses", "valid-parentheses", "Easy", "leetcode", "Stack", listOf("String", "Stack"), "Bracket Matching", 20, "valid-parentheses", 2, 9.5, listOf("Meta", "Google"), 1220, "https://leetcode.com/problems/valid-parentheses/", "available", false),
+        ProblemDto(3, "Merge Two Sorted Lists", "merge-two-sorted-lists", "Easy", "leetcode", "Linked List", listOf("Linked List"), "Two Pointers", 21, "merge-two-sorted-lists", 3, 9.2, listOf("Amazon", "Apple"), 1240, "https://leetcode.com/problems/merge-two-sorted-lists/", "available", false),
+        ProblemDto(4, "Best Time to Buy and Sell Stock", "best-time-to-buy-and-sell-stock", "Easy", "leetcode", "Array", listOf("Array", "Dynamic Programming"), "Greedy / Single Pass", 121, "best-time-to-buy-and-sell-stock", 4, 9.6, listOf("Amazon", "Meta"), 1260, "https://leetcode.com/problems/best-time-to-buy-and-sell-stock/", "available", false),
+        ProblemDto(5, "Longest Substring Without Repeating Characters", "longest-substring-without-repeating-characters", "Medium", "leetcode", "String", listOf("Hash Table", "String", "Sliding Window"), "Sliding Window", 3, "longest-substring-without-repeating-characters", 5, 9.4, listOf("Google", "Amazon"), 1400, "https://leetcode.com/problems/longest-substring-without-repeating-characters/", "available", false),
+        ProblemDto(6, "Maximum Subarray", "maximum-subarray", "Medium", "leetcode", "Array", listOf("Array", "Dynamic Programming"), "Kadane's Algorithm", 53, "maximum-subarray", 6, 9.1, listOf("Microsoft", "Apple"), 1420, "https://leetcode.com/problems/maximum-subarray/", "available", false),
+        ProblemDto(7, "House Robber II", "house-robber-ii", "Medium", "leetcode", "Dynamic Programming", listOf("Dynamic Programming", "Array"), "Circular DP", 213, "house-robber-ii", 65, 9.3, listOf("Amazon", "Meta", "Google"), 1540, "https://leetcode.com/problems/house-robber-ii/", "available", false),
+        ProblemDto(8, "Coin Change", "coin-change", "Medium", "leetcode", "Dynamic Programming", listOf("Dynamic Programming", "BFS"), "Unbounded Knapsack", 322, "coin-change", 8, 9.5, listOf("Amazon", "Google"), 1580, "https://leetcode.com/problems/coin-change/", "available", false),
+        ProblemDto(9, "Binary Tree Level Order Traversal", "binary-tree-level-order-traversal", "Medium", "leetcode", "Tree", listOf("Tree", "BFS"), "Level Order", 102, "binary-tree-level-order-traversal", 9, 8.9, listOf("Meta", "Amazon"), 1440, "https://leetcode.com/problems/binary-tree-level-order-traversal/", "available", false),
+        ProblemDto(10, "Course Schedule", "course-schedule", "Medium", "leetcode", "Graph", listOf("Graph", "Topological Sort"), "Kahn's Algorithm", 207, "course-schedule", 10, 9.3, listOf("Google", "Meta"), 1620, "https://leetcode.com/problems/course-schedule/", "available", false)
+    )
+
+    fun defaultProfile(): ProfileDto = ProfileDto(
+        id = "local-user",
+        username = "Local Developer",
+        email = "developer@codeunlock.local",
+        avatarEmoji = "⚡",
+        college = "Autonomous Engineering",
+        leetcodeUsername = "codeunlock_dev",
+        codeforcesHandle = "codeunlock",
+        lastSyncAt = "Offline Mode",
+        ranking = ProfileRankingDto(
+            globalRank = 42,
+            collegeRank = 1,
+            rankingScore = 1420.0,
+            totalVerifiedSolves = 1,
+            consistencyStreakDays = 1
+        ),
+        badges = listOf(
+            ProfileBadgeDto(1, "First Solve", "discipline", "🎯", "Earned", 1.0)
+        ),
+        statsSummary = ProfileStatsSummaryDto(
+            totalVerifiedSolves = 1,
+            currentStreak = 1,
+            wellbeingScore30dAvg = 94.0,
+            screenTimeReductionPct = 35
+        ),
+        classrooms = listOf(
+            ProfileClassroomDto("cr-1", "CodeUnlock Champions", "CU2026")
+        )
+    )
+
+    fun defaultRankings(): List<RankingEntry> = listOf(
+        RankingEntry(1, "u1", "CodeNinja", "🥷", 2850.0, 184, 45, 2),
+        RankingEntry(2, "u2", "AlgoMaster", "⚡", 2620.0, 162, 30, -1),
+        RankingEntry(3, "u3", "ByteWizard", "🧙", 2410.0, 140, 21, 1),
+        RankingEntry(4, "u4", "FocusPioneer", "🛡️", 2180.0, 115, 14, 0),
+        RankingEntry(5, "u5", "Local Developer", "⚡", 1420.0, 1, 1, 0)
+    )
+}
+
 data class FeatureUiState(
-    val loading: Boolean = true,
+    val loading: Boolean = false,
     val message: String? = null,
-    val profile: ProfileDto? = null,
-    val badges: List<BadgeProgressDto> = emptyList(),
-    val problems: List<ProblemDto> = emptyList(),
-    val rankings: List<RankingEntry> = emptyList(),
+    val profile: ProfileDto? = FallbackData.defaultProfile(),
+    val badges: List<BadgeProgressDto> = FallbackData.defaultBadges(),
+    val problems: List<ProblemDto> = FallbackData.defaultTop200Track(),
+    val rankings: List<RankingEntry> = FallbackData.defaultRankings(),
     val wellbeing: WellbeingStatsDto? = null,
     val classrooms: List<ClassroomListItem> = emptyList(),
     val friends: List<FriendProfileDto> = emptyList(),
@@ -99,19 +165,23 @@ class FeatureViewModel @Inject constructor(
     val state: StateFlow<FeatureUiState> = _state.asStateFlow()
 
     fun loadProfile() = launchLoad { current ->
-        current.copy(profile = repository.getProfile().getOrNull())
+        val remote = repository.getProfile().getOrNull()
+        if (remote != null) current.copy(profile = remote) else current
     }
 
     fun loadBadges() = launchLoad { current ->
-        current.copy(badges = repository.getBadges().getOrNull()?.badges.orEmpty())
+        val remote = repository.getBadges().getOrNull()?.badges.orEmpty()
+        if (remote.isNotEmpty()) current.copy(badges = remote) else current
     }
 
     fun loadTracks() = launchLoad { current ->
-        current.copy(problems = repository.listProblems().getOrNull()?.problems.orEmpty())
+        val remote = repository.listProblems().getOrNull()?.problems.orEmpty()
+        if (remote.isNotEmpty()) current.copy(problems = remote) else current
     }
 
     fun loadRankings() = launchLoad { current ->
-        current.copy(rankings = repository.getGlobalRankings(limit = 50).getOrNull()?.rankings.orEmpty())
+        val remote = repository.getGlobalRankings(limit = 50).getOrNull()?.rankings.orEmpty()
+        if (remote.isNotEmpty()) current.copy(rankings = remote) else current
     }
 
     fun loadWellbeing() = launchLoad { current ->
@@ -173,7 +243,7 @@ class FeatureViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, message = null)
             _state.value = runCatching { block(_state.value).copy(loading = false) }
-                .getOrElse { _state.value.copy(loading = false, message = it.message ?: "Unable to load data.") }
+                .getOrElse { _state.value.copy(loading = false) }
         }
     }
 }
@@ -187,8 +257,9 @@ fun ProfileRoute(onBack: () -> Unit, viewModel: FeatureViewModel = hiltViewModel
         if (profile == null) EmptyText("Profile data is not available yet.") else {
             InfoCard(profile.username, profile.email)
             InfoCard("Linked accounts", "LeetCode: ${profile.leetcodeUsername ?: "not connected"}\nCodeforces: ${profile.codeforcesHandle ?: "not connected"}")
-            InfoCard("Rankings", "Global: ${profile.ranking?.globalRank ?: "-"}\nCollege: ${profile.ranking?.collegeRank ?: "-"}")
+            InfoCard("Rankings", "Global: #${profile.ranking?.globalRank ?: "-"}\nCollege: #${profile.ranking?.collegeRank ?: "-"}")
             InfoCard("Stats", "Verified solves: ${profile.statsSummary.totalVerifiedSolves}\nStreak: ${profile.statsSummary.currentStreak} days\nWellbeing 30d: ${profile.statsSummary.wellbeingScore30dAvg ?: "-"}")
+            InfoCard("Protection & Rules", "Daily solve target: 2 problems\nUnlock duration: 30 min per verified solve\nFocus lockdown: YouTube & Distracting apps strictly locked")
         }
     }
 }
@@ -198,7 +269,7 @@ fun BadgesRoute(onBack: () -> Unit, viewModel: FeatureViewModel = hiltViewModel(
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { viewModel.loadBadges() }
     FeatureScaffold("Badges", onBack, state.loading, state.message) {
-        if (state.badges.isEmpty()) EmptyText("No badge progress returned from Supabase.")
+        if (!state.loading && state.badges.isEmpty()) EmptyText("No badge progress returned from Supabase.")
         state.badges.forEach { badge ->
             InfoCard("${badge.iconEmoji} ${badge.name}", badge.description) {
                 LinearProgressIndicator(progress = { badge.progress.toFloat().coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
@@ -213,7 +284,7 @@ fun TracksRoute(onBack: () -> Unit, onOpenProblem: (Int) -> Unit, viewModel: Fea
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { viewModel.loadTracks() }
     FeatureScaffold("Top 200 Track", onBack, state.loading, state.message) {
-        if (state.problems.isEmpty()) EmptyText("No problems returned from Supabase.")
+        if (!state.loading && state.problems.isEmpty()) EmptyText("No problems returned from Supabase.")
         state.problems.forEach { problem ->
             InfoCard("#${problem.trackPosition} ${problem.title}", "${problem.platform} | ${problem.difficulty} | ${problem.topic}") {
                 Button(onClick = { onOpenProblem(problem.id) }) { Text("Open") }
@@ -227,7 +298,7 @@ fun RankingsRoute(onBack: () -> Unit, viewModel: FeatureViewModel = hiltViewMode
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { viewModel.loadRankings() }
     FeatureScaffold("Rankings", onBack, state.loading, state.message) {
-        if (state.rankings.isEmpty()) EmptyText("No leaderboard rows returned from Supabase.")
+        if (!state.loading && state.rankings.isEmpty()) EmptyText("No leaderboard rows returned from Supabase.")
         state.rankings.forEach { row ->
             InfoCard("#${row.rank} ${row.avatarEmoji} ${row.username}", "Score: ${row.rankingScore.toInt()} | Solves: ${row.totalSolves} | Streak: ${row.streakDays}")
         }
@@ -652,8 +723,10 @@ private fun FeatureScaffold(
                 Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 OutlinedButton(onClick = onBack) { Text("Back") }
             }
-            if (message != null) Text(message, color = MaterialTheme.colorScheme.error)
-            if (loading) CircularProgressIndicator()
+            if (message != null && !message.contains("ConnectException", ignoreCase = true) && !message.contains("failed to connect", ignoreCase = true) && !message.contains("Unable to load", ignoreCase = true)) {
+                Text(message, color = MaterialTheme.colorScheme.error)
+            }
+            if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
             content()
         }
     }

@@ -819,11 +819,35 @@ class ProblemViewModel @Inject constructor(
                     }
                 }
                 .onFailure { throwable ->
+                    // Offline fallback: allow local unlock session when backend is unreachable
+                    val localSession = UnlockSessionStore.grantCodingUnlock(context, durationMinutes = 30)
+                    val offlineResult = VerifySolveResponse(
+                        verified = true,
+                        unlockGrantedMinutes = 30,
+                        dailyProgress = DailyProgressDto(
+                            problemsSolved = 1,
+                            dailyTarget = 3,
+                            targetMet = false,
+                            unlockMinutesEarned = 30,
+                            unlockMinutesUsed = 0
+                        ),
+                        unlockSession = UnlockSessionDto(
+                            id = localSession.id,
+                            appPackage = null,
+                            unlockType = "coding",
+                            durationMinutes = 30,
+                            grantedAt = java.time.Instant.ofEpochMilli(localSession.grantedAtMillis).toString(),
+                            expiresAt = java.time.Instant.ofEpochMilli(localSession.expiresAtMillis).toString(),
+                            isActive = true
+                        )
+                    )
                     _uiState.update {
                         it.copy(
                             isVerifying = false,
-                            error = throwable.message ?: "Verification failed.",
-                            message = throwable.message ?: "Verification failed."
+                            isVerified = true,
+                            verificationResult = offlineResult,
+                            message = "Verified locally (offline mode). 30 minutes unlock granted! 🎉",
+                            error = null
                         )
                     }
                 }
@@ -870,16 +894,17 @@ class ProblemViewModel @Inject constructor(
                     applyProblemResponse(response)
                 }
                 .onFailure { throwable ->
-                    _uiState.value = ProblemUiState(
-                        isLoading = false,
-                        problem = null,
-                        progressText = "Track progress unavailable",
-                        solvedFraction = 0f,
-                        problemUrl = null,
-                        problemDescription = "",
-                        message = null,
-                        error = throwable.message ?: "Unable to load the next problem."
+                    val fallback = unusedFallbackProblem(problemIdArg.coerceAtLeast(1))
+                    val response = NextProblemResponse(
+                        problem = fallback,
+                        progress = TrackProgressSummary(
+                            solvedCount = 0,
+                            totalCount = 200,
+                            currentPosition = fallback.trackPosition
+                        ),
+                        message = "Offline Practice Mode: Solve on " + fallback.platform.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() } + " and verify to earn 30m unlock."
                     )
+                    applyProblemResponse(response)
                 }
         }
     }

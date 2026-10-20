@@ -988,7 +988,7 @@ class DashboardViewModel @Inject constructor(
                 rankings
             ).any { it != null }
 
-            val errorMessage = if (hadAnyData) {
+            val errorMessage = if (hadAnyData || !session.hasRealSession) {
                 null
             } else {
                 "Could not load live dashboard data. Pull to refresh after checking your connection."
