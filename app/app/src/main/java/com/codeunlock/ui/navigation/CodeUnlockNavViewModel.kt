@@ -71,7 +71,13 @@ class CodeUnlockNavViewModel @Inject constructor(
         val onboarding = onboardingState.value
 
         return when {
-            onboarding.isResolved && onboarding.isComplete -> AppRoute.Dashboard.route
+            onboarding.isResolved && onboarding.isComplete -> {
+                if (com.codeunlock.service.FocusTimerService.isRunning.value) {
+                    AppRoute.Focus.route
+                } else {
+                    AppRoute.Dashboard.route
+                }
+            }
             else -> AppRoute.Permissions.route
         }
     }

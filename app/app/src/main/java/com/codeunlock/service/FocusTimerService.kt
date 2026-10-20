@@ -16,7 +16,9 @@ import com.codeunlock.data.focus.FocusSessionRecord
 import com.codeunlock.data.focus.FocusSessionStore
 import com.codeunlock.data.notification.NotificationHelper
 import com.codeunlock.data.unlock.UnlockSessionStore
+import com.codeunlock.service.overlay.FloatingFocusTimerOverlay
 import com.codeunlock.ui.MainActivity
+import com.codeunlock.ui.navigation.AppRoute
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -73,6 +75,7 @@ class FocusTimerService : Service() {
         _isRunning.value = true
 
         startForeground(NotificationHelper.ID_FOCUS_TIMER, buildNotification("Focusing: $subject", formatTime(durationSec)))
+        FloatingFocusTimerOverlay.show(applicationContext, formatTime(durationSec))
 
         timerJob?.cancel()
         timerJob = serviceScope.launch {
@@ -86,6 +89,7 @@ class FocusTimerService : Service() {
                     _elapsedSeconds.value = (_totalDurationSeconds.value - remainingSec).coerceAtLeast(0L)
 
                     updateNotification("Focusing: ${_activeSubject.value}", formatTime(remainingSec))
+                    FloatingFocusTimerOverlay.update(formatTime(remainingSec), _isPaused.value, _isBreakTime.value)
 
                     if (remainingSec <= 0L) {
                         handleTimerFinished()
@@ -126,6 +130,7 @@ class FocusTimerService : Service() {
                     val remainingSec = ((targetEndTimeMillis - now) / 1000L).coerceAtLeast(0L)
                     _remainingSeconds.value = remainingSec
                     updateNotification("Break Time! ☕", formatTime(remainingSec))
+                    FloatingFocusTimerOverlay.update(formatTime(remainingSec), isPaused = false, isBreakTime = true)
                     if (remainingSec <= 0L) {
                         stopTimer()
                         break
@@ -142,6 +147,7 @@ class FocusTimerService : Service() {
         _isPaused.value = true
         pausedRemainingMillis = targetEndTimeMillis - SystemClock.elapsedRealtime()
         updateNotification("Paused: ${_activeSubject.value}", formatTime(_remainingSeconds.value))
+        FloatingFocusTimerOverlay.update(formatTime(_remainingSeconds.value), isPaused = true, isBreakTime = _isBreakTime.value)
     }
 
     private fun resumeTimer() {
@@ -149,6 +155,7 @@ class FocusTimerService : Service() {
         _isPaused.value = false
         targetEndTimeMillis = SystemClock.elapsedRealtime() + pausedRemainingMillis
         updateNotification("Focusing: ${_activeSubject.value}", formatTime(_remainingSeconds.value))
+        FloatingFocusTimerOverlay.update(formatTime(_remainingSeconds.value), isPaused = false, isBreakTime = _isBreakTime.value)
     }
 
     private fun stopTimer() {
@@ -160,6 +167,7 @@ class FocusTimerService : Service() {
         timerJob?.cancel()
 
         AmbientSoundManager.stopSound()
+        FloatingFocusTimerOverlay.dismiss()
 
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
@@ -174,6 +182,7 @@ class FocusTimerService : Service() {
     private fun buildNotification(title: String, timeText: String): Notification {
         val openAppIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(MainActivity.EXTRA_INITIAL_ROUTE, AppRoute.Focus.route)
         }
         val contentPendingIntent = PendingIntent.getActivity(
             this,
@@ -216,6 +225,7 @@ class FocusTimerService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        FloatingFocusTimerOverlay.dismiss()
         serviceScope.cancel()
         runCatching {
             if (wakeLock?.isHeld == true) wakeLock?.release()

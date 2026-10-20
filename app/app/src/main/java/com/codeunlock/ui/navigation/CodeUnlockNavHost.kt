@@ -16,6 +16,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.codeunlock.service.FocusTimerService
+import com.codeunlock.ui.MainActivity
 import com.codeunlock.ui.screens.dashboard.DashboardRoute
 import com.codeunlock.ui.screens.feature.BadgesRoute
 import com.codeunlock.ui.screens.feature.ProfileRoute
@@ -53,13 +55,39 @@ fun CodeUnlockNavHost(
     // Offline-first: start at Permissions or Dashboard (never Login)
     val startDestination = navViewModel.resolveStartDestination(initialRoute)
 
+    val isFocusRunning by FocusTimerService.isRunning.collectAsStateWithLifecycle()
+    val pendingRoute by MainActivity.pendingRoute.collectAsStateWithLifecycle()
+
+    // Handle pending route from notifications, overlay clicks, or focus resume
+    LaunchedEffect(pendingRoute) {
+        val target = pendingRoute
+        if (!target.isNullOrBlank()) {
+            MainActivity.pendingRoute.value = null
+            if (backStackEntry?.destination?.route != target) {
+                navController.navigate(target) {
+                    launchSingleTop = true
+                }
+            }
+        }
+    }
+
+    // Auto-open Focus Timer when returning to Dashboard if focus session is active
+    val currentRoute = backStackEntry?.destination?.route
+    LaunchedEffect(isFocusRunning, currentRoute) {
+        if (isFocusRunning && currentRoute == AppRoute.Dashboard.route) {
+            navController.navigate(AppRoute.Focus.route) {
+                launchSingleTop = true
+            }
+        }
+    }
+
     // Auto-redirect after login
     LaunchedEffect(sessionState.isAuthenticated, backStackEntry?.destination?.route) {
-        val currentRoute = backStackEntry?.destination?.route
-        if (currentRoute.isNullOrEmpty()) return@LaunchedEffect
+        val current = backStackEntry?.destination?.route
+        if (current.isNullOrEmpty()) return@LaunchedEffect
 
         // After successful login from Login screen, go back to Dashboard
-        if (sessionState.isAuthenticated && currentRoute == AppRoute.Login.route) {
+        if (sessionState.isAuthenticated && current == AppRoute.Login.route) {
             navController.navigate(AppRoute.Dashboard.route) {
                 popUpTo(AppRoute.Login.route) { inclusive = true }
                 launchSingleTop = true
@@ -67,7 +95,6 @@ fun CodeUnlockNavHost(
         }
     }
 
-    val currentRoute = backStackEntry?.destination?.route
     val showBottomNav = currentRoute in bottomNavRoutes
 
     Scaffold(

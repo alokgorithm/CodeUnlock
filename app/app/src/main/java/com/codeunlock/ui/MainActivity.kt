@@ -8,9 +8,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.codeunlock.service.FocusTimerService
+import com.codeunlock.ui.navigation.AppRoute
 import com.codeunlock.ui.navigation.CodeUnlockNavHost
 import com.codeunlock.ui.theme.CodeUnlockTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.MutableStateFlow
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -22,6 +25,13 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+
+        val routeFromIntent = initialRoute
+        if (!routeFromIntent.isNullOrBlank()) {
+            pendingRoute.value = routeFromIntent
+        } else if (FocusTimerService.isRunning.value) {
+            pendingRoute.value = AppRoute.Focus.route
+        }
 
         try {
             setContent {
@@ -36,8 +46,27 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val route = intent.getStringExtra(EXTRA_INITIAL_ROUTE)
+        if (!route.isNullOrBlank()) {
+            pendingRoute.value = route
+        } else if (FocusTimerService.isRunning.value) {
+            pendingRoute.value = AppRoute.Focus.route
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (FocusTimerService.isRunning.value && pendingRoute.value == null) {
+            pendingRoute.value = AppRoute.Focus.route
+        }
+    }
+
     companion object {
-        private const val EXTRA_INITIAL_ROUTE = "extra_initial_route"
+        const val EXTRA_INITIAL_ROUTE = "extra_initial_route"
+        val pendingRoute = MutableStateFlow<String?>(null)
 
         fun createIntent(
             context: Context,

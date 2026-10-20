@@ -317,6 +317,20 @@ fun FocusTimerScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Button(
                             onClick = {
+                                if (!android.provider.Settings.canDrawOverlays(context)) {
+                                    try {
+                                        val overlayIntent = android.content.Intent(
+                                            android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                            android.net.Uri.parse("package:${context.packageName}")
+                                        )
+                                        context.startActivity(overlayIntent)
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            "Enable 'Display over other apps' for the floating timer sidebar.",
+                                            android.widget.Toast.LENGTH_LONG
+                                        ).show()
+                                    } catch (_: Exception) {}
+                                }
                                 val duration = when (selectedMode) {
                                     FocusTimerService.MODE_POMODORO -> 25 * 60L
                                     FocusTimerService.MODE_DEEP_FOCUS -> selectedDeepMinutes * 60L
