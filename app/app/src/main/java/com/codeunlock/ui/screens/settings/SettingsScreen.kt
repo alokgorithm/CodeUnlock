@@ -105,6 +105,7 @@ fun SettingsRoute(
     var reelsBlock by rememberSaveable { mutableStateOf(initialReels.reelsBlocked || initialReels.shortsBlocked) }
     var leetcodeUsername by rememberSaveable { mutableStateOf(initialSettings.leetcodeUsername.orEmpty()) }
     var codeforcesHandle by rememberSaveable { mutableStateOf(initialSettings.codeforcesHandle.orEmpty()) }
+    var themeMode by rememberSaveable { mutableStateOf(initialSettings.themeMode) }
 
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
@@ -153,6 +154,7 @@ fun SettingsRoute(
                                 reelsBlock = reelsBlock,
                                 leetcodeUsername = leetcodeUsername,
                                 codeforcesHandle = codeforcesHandle,
+                                themeMode = themeMode,
                                 onSaved = onBack
                             )
                         }
@@ -185,6 +187,9 @@ fun SettingsRoute(
                                 freeUnlock = freeUnlock,
                                 settingsGuard = settingsGuard,
                                 reelsBlock = reelsBlock,
+                                leetcodeUsername = leetcodeUsername,
+                                codeforcesHandle = codeforcesHandle,
+                                themeMode = themeMode,
                                 onSaved = onBack
                             )
                         },
@@ -239,6 +244,17 @@ fun SettingsRoute(
                         )
                     }
                 }
+            }
+
+            item {
+                SectionHeader("Appearance & Theme")
+                ThemeSelector(
+                    selectedTheme = themeMode,
+                    onThemeSelected = { newMode ->
+                        themeMode = newMode
+                        BlockingSettingsStore.setThemeMode(context, newMode)
+                    }
+                )
             }
 
             item {
@@ -379,6 +395,72 @@ private fun SectionHeader(title: String) {
         color = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.padding(vertical = 4.dp)
     )
+}
+
+@Composable
+private fun ThemeSelector(
+    selectedTheme: String,
+    onThemeSelected: (String) -> Unit
+) {
+    val options = listOf(
+        Triple(BlockingSettingsStore.THEME_SYSTEM, "System", Icons.Default.BrightnessAuto),
+        Triple(BlockingSettingsStore.THEME_LIGHT, "Light", Icons.Default.LightMode),
+        Triple(BlockingSettingsStore.THEME_DARK, "Dark", Icons.Default.DarkMode)
+    )
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        options.forEach { (mode, label, icon) ->
+            val isSelected = selectedTheme == mode
+            val containerColor = if (isSelected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+            }
+            val contentColor = if (isSelected) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
+            val borderColor = if (isSelected) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            }
+
+            Surface(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable { onThemeSelected(mode) },
+                shape = RoundedCornerShape(16.dp),
+                color = containerColor,
+                border = androidx.compose.foundation.BorderStroke(if (isSelected) 1.5.dp else 1.dp, borderColor)
+            ) {
+                Column(
+                    modifier = Modifier.padding(vertical = 14.dp, horizontal = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = contentColor,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = contentColor
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -582,6 +664,7 @@ private fun saveSettings(
     reelsBlock: Boolean,
     leetcodeUsername: String = "",
     codeforcesHandle: String = "",
+    themeMode: String = BlockingSettingsStore.THEME_SYSTEM,
     onSaved: () -> Unit
 ) {
     val existing = BlockingSettingsStore.read(context)
@@ -594,10 +677,12 @@ private fun saveSettings(
         isFirstSetupComplete = true,
         lastSavedAt = System.currentTimeMillis(),
         leetcodeUsername = leetcodeUsername.trim().takeIf { it.isNotBlank() },
-        codeforcesHandle = codeforcesHandle.trim().takeIf { it.isNotBlank() }
+        codeforcesHandle = codeforcesHandle.trim().takeIf { it.isNotBlank() },
+        themeMode = themeMode
     )
 
     BlockingSettingsStore.write(context, updated)
+    BlockingSettingsStore.setThemeMode(context, themeMode)
     StrictModeStore.setSettingsGuardEnabled(context, settingsGuard)
     ReelsBlockingStore.write(
         context,

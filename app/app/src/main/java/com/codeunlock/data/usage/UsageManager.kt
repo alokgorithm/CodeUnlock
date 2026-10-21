@@ -197,11 +197,13 @@ object UsageManager {
 
     fun getTodayUsageMinutes(context: Context, packageName: String): Long {
         if (!hasUsageStatsPermission(context)) return 0L
+        if (packageName == context.packageName) return 0L
         val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         val (start, now) = todayBounds()
-        val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, start, now) ?: return 0L
-        val totalMs = stats.filter { it.packageName == packageName }.sumOf { it.totalTimeInForeground }
-        return totalMs / 60_000L
+        val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_BEST, start, now) ?: return 0L
+        val totalMs = stats.filter { it.packageName == packageName }.maxOfOrNull { it.totalTimeInForeground } ?: 0L
+        val maxPossibleMs = (now - start).coerceAtLeast(0L)
+        return minOf(totalMs, maxPossibleMs) / 60_000L
     }
 
     // ── Full per-app usage map — used by WellbeingSyncWorker ─────
@@ -211,28 +213,34 @@ object UsageManager {
         val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         val pm  = context.packageManager
         val (start, now) = todayBounds()
-        val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, start, now) ?: return emptyMap()
+        val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_BEST, start, now) ?: return emptyMap()
+        val maxPossibleSec = ((now - start).coerceAtLeast(0L)) / 1000L
 
         return stats
             .filter { it.totalTimeInForeground > 0 && it.packageName.isNotBlank() }
             .filter { s ->
+                s.packageName != context.packageName &&
                 !s.packageName.startsWith("android") &&
                 !s.packageName.startsWith("com.android.") &&
                 !s.packageName.startsWith("com.google.android.permissioncontroller")
             }
-            .associate { stat ->
+            .groupBy { it.packageName }
+            .mapValues { (_, entries) -> entries.maxOf { it.totalTimeInForeground } }
+            .mapNotNull { (pkg, totalMs) ->
+                val durationSec = minOf(totalMs / 1000L, maxPossibleSec)
+                if (durationSec <= 0L) return@mapNotNull null
                 val label = runCatching {
-                    pm.getApplicationLabel(pm.getApplicationInfo(stat.packageName, 0)).toString()
-                }.getOrElse { "[Uninstalled] " + stat.packageName.substringAfterLast('.').capitalized() }
+                    pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+                }.getOrElse { "[Uninstalled] " + pkg.substringAfterLast('.').capitalized() }
 
-                stat.packageName to AppUsageStat(
-                    packageName     = stat.packageName,
+                pkg to AppUsageStat(
+                    packageName     = pkg,
                     appName         = label,
-                    durationSeconds = stat.totalTimeInForeground / 1_000L,
-                    lastUsedMs      = stat.lastTimeUsed,
-                    category        = resolveCategory(stat.packageName),
+                    durationSeconds = durationSec,
+                    lastUsedMs      = System.currentTimeMillis(),
+                    category        = resolveCategory(pkg),
                 )
-            }
+            }.toMap()
     }
 
     // ── Pickup count proxy via ACTIVITY_RESUMED events ───────────
@@ -456,10 +464,18 @@ object UsageManager {
 
             if (dStart <= now) {
                 val queryEnd = minOf(dEnd, now)
-                val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, dStart, queryEnd) ?: emptyList()
-                stats.filter { it.totalTimeInForeground > 0 && isValidPackage(it.packageName) }.forEach { s ->
-                    val cat = AppCategoryStore.getCategory(context, s.packageName, settings.restrictedApps.contains(s.packageName))
-                    val sec = s.totalTimeInForeground / 1000L
+                val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_BEST, dStart, queryEnd) ?: emptyList()
+                // Deduplicate: Android may return multiple stat buckets for the same package
+                // within a single day query. Take the MAX foreground time per package, not the SUM,
+                // to avoid double-counting that produces impossible values (>24h per day).
+                val dedupedByPkg = stats
+                    .filter { it.totalTimeInForeground > 0 && isValidPackage(context, it.packageName) }
+                    .groupBy { it.packageName }
+                    .mapValues { (_, entries) -> entries.maxOf { it.totalTimeInForeground } }
+
+                dedupedByPkg.forEach { (pkg, foregroundMs) ->
+                    val cat = AppCategoryStore.getCategory(context, pkg, settings.restrictedApps.contains(pkg))
+                    val sec = foregroundMs / 1000L
                     when (cat) {
                         AppCategory.DISTRACTING -> dayDistractingSec += sec
                         AppCategory.PRODUCTIVE -> dayProductiveSec += sec
@@ -471,7 +487,9 @@ object UsageManager {
             val dDistractingMin = dayDistractingSec / 60
             val dProductiveMin = dayProductiveSec / 60
             val dOthersMin = dayOthersSec / 60
-            val dTotalMin = dDistractingMin + dProductiveMin + dOthersMin
+            // Cap per-day total to 24 hours max — Android UsageStats can
+            // occasionally report inflated numbers due to overlapping buckets
+            val dTotalMin = (dDistractingMin + dProductiveMin + dOthersMin).coerceAtMost(1440L)
 
             val dateText = java.text.SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(java.util.Date(dStart))
             val isToday = dStart == todayStart
@@ -522,12 +540,34 @@ object UsageManager {
             headerSubtitle = "$startFmt - $endFmt"
         }
 
-        val rangeStats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, rangeStart, rangeEnd) ?: emptyList()
+        val rangeStats = usm.queryUsageStats(UsageStatsManager.INTERVAL_BEST, rangeStart, rangeEnd) ?: emptyList()
         val appDurationMap = mutableMapOf<String, Long>()
 
-        rangeStats.filter { it.totalTimeInForeground > 0 && isValidPackage(it.packageName) }.forEach { s ->
-            val prev = appDurationMap.getOrDefault(s.packageName, 0L)
-            appDurationMap[s.packageName] = prev + (s.totalTimeInForeground / 1000L)
+        val maxPossibleAppSec = if (isDaily) ((rangeEnd - rangeStart).coerceAtLeast(0L) / 1000L).coerceAtMost(86400L) else (7 * 86400L)
+
+        // Deduplicate: take MAX foreground time per package across all returned buckets
+        // to prevent double-counting from overlapping INTERVAL_DAILY buckets.
+        if (isDaily) {
+            // Single day: group by package, take max
+            rangeStats.filter { it.totalTimeInForeground > 0 && isValidPackage(context, it.packageName) }
+                .groupBy { it.packageName }
+                .forEach { (pkg, entries) ->
+                    val sec = entries.maxOf { it.totalTimeInForeground } / 1000L
+                    appDurationMap[pkg] = minOf(sec, maxPossibleAppSec)
+                }
+        } else {
+            // Weekly: group by (package + day bucket), take max per bucket, then sum across days
+            rangeStats.filter { it.totalTimeInForeground > 0 && isValidPackage(context, it.packageName) }
+                .groupBy { stat ->
+                    val dayBucket = (stat.lastTimeUsed / 86_400_000L) // day-level bucket
+                    "${stat.packageName}|$dayBucket"
+                }
+                .forEach { (key, entries) ->
+                    val pkg = key.substringBefore("|")
+                    val maxForBucket = entries.maxOf { it.totalTimeInForeground } / 1000L
+                    val prev = appDurationMap[pkg] ?: 0L
+                    appDurationMap[pkg] = minOf(prev + maxForBucket, maxPossibleAppSec)
+                }
         }
 
         var totalDistractingSec = 0L
@@ -573,7 +613,9 @@ object UsageManager {
         val totalDistractingMin = totalDistractingSec / 60
         val totalProductiveMin = totalProductiveSec / 60
         val totalOthersMin = totalOthersSec / 60
-        val totalMin = totalDistractingMin + totalProductiveMin + totalOthersMin
+        val rawTotalMin = totalDistractingMin + totalProductiveMin + totalOthersMin
+        // Cap daily view to 24h max; weekly can exceed since it's across 7 days
+        val totalMin = if (isDaily) rawTotalMin.coerceAtMost(1440L) else rawTotalMin
 
         return UsageStatsSummary(
             isDaily = isDaily,
@@ -591,8 +633,9 @@ object UsageManager {
         )
     }
 
-    private fun isValidPackage(pkg: String): Boolean {
+    private fun isValidPackage(context: Context, pkg: String): Boolean {
         if (pkg.isBlank()) return false
+        if (pkg == context.packageName) return false // Never count CodeUnlock itself as distraction/phone screen time
         if (pkg.startsWith("android")) return false
         if (pkg.startsWith("com.android.systemui")) return false
         if (pkg.startsWith("com.google.android.permissioncontroller")) return false

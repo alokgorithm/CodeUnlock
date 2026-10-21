@@ -7,7 +7,11 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.codeunlock.data.settings.BlockingSettingsStore
 import com.codeunlock.service.FocusTimerService
 import com.codeunlock.ui.navigation.AppRoute
 import com.codeunlock.ui.navigation.CodeUnlockNavHost
@@ -25,6 +29,7 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        BlockingSettingsStore.initThemeMode(this)
 
         val routeFromIntent = initialRoute
         if (!routeFromIntent.isNullOrBlank()) {
@@ -35,7 +40,15 @@ class MainActivity : ComponentActivity() {
 
         try {
             setContent {
-                CodeUnlockTheme {
+                val themeMode by BlockingSettingsStore.themeModeFlow.collectAsState()
+                val systemDark = isSystemInDarkTheme()
+                val isDark = when (themeMode) {
+                    BlockingSettingsStore.THEME_LIGHT -> false
+                    BlockingSettingsStore.THEME_DARK -> true
+                    else -> systemDark
+                }
+
+                CodeUnlockTheme(darkTheme = isDark) {
                     CodeUnlockNavHost(
                         initialRoute = initialRoute
                     )

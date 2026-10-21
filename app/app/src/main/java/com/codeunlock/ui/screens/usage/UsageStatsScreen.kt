@@ -45,10 +45,8 @@ import com.codeunlock.data.usage.AppCategory
 import com.codeunlock.data.usage.AppCategoryStore
 import com.codeunlock.data.usage.UsageManager
 import java.util.Calendar
+import kotlin.math.roundToInt
 
-private val DarkBackground = Color(0xFF0F1117)
-private val DarkCardSurface = Color(0xFF181C26)
-private val DarkCardBorder = Color(0xFF262C3D)
 private val ColorDistracting = Color(0xFFFF8A00)
 private val ColorProductive = Color(0xFF4CAF50)
 private val ColorOthers = Color(0xFF8E99A8)
@@ -82,14 +80,14 @@ fun UsageStatsRoute(
     }
 
     Scaffold(
-        containerColor = DarkBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Usage Stats",
+                        text = "App Breakdown",
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 20.sp
                     )
                 },
@@ -98,7 +96,7 @@ fun UsageStatsRoute(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color.White
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 },
@@ -106,8 +104,8 @@ fun UsageStatsRoute(
                     // Quick button to jump to Blocks / Limits
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = DarkCardSurface,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, DarkCardBorder),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         modifier = Modifier
                             .padding(end = 6.dp)
                             .clickable { onOpenAppLimits() }
@@ -123,15 +121,15 @@ fun UsageStatsRoute(
                                 modifier = Modifier.size(14.dp),
                                 tint = Color(0xFFFF5252)
                             )
-                            Text("Blocks", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Blocks", color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
                     IconButton(onClick = { showHelpDialog = true }) {
                         Surface(
                             shape = CircleShape,
-                            color = DarkCardSurface,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, DarkCardBorder)
+                            color = MaterialTheme.colorScheme.surface,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -141,15 +139,15 @@ fun UsageStatsRoute(
                                 Icon(
                                     Icons.AutoMirrored.Filled.HelpOutline,
                                     contentDescription = "Help",
-                                    tint = Color(0xFFCBD5E1),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(14.dp)
                                 )
-                                Text("Help", color = Color(0xFFCBD5E1), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Help", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBackground)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         }
     ) { padding ->
@@ -234,26 +232,26 @@ fun UsageStatsRoute(
                         OutlinedTextField(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
-                            placeholder = { Text("Search apps", color = Color(0xFF6B7280), fontSize = 14.sp) },
+                            placeholder = { Text("Search apps", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), fontSize = 14.sp) },
                             leadingIcon = {
-                                Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF6B7280))
+                                Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
                             },
                             trailingIcon = {
                                 if (searchQuery.isNotEmpty()) {
                                     IconButton(onClick = { searchQuery = "" }) {
-                                        Icon(Icons.Default.Clear, contentDescription = "Clear", tint = Color(0xFF9CA3AF))
+                                        Icon(Icons.Default.Clear, contentDescription = "Clear", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                 }
                             },
                             singleLine = true,
                             shape = RoundedCornerShape(16.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = DarkCardSurface,
-                                unfocusedContainerColor = DarkCardSurface,
-                                focusedBorderColor = Color(0xFF3B82F6),
-                                unfocusedBorderColor = DarkCardBorder,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
+                                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -270,7 +268,7 @@ fun UsageStatsRoute(
                             ) {
                                 Text(
                                     text = if (searchQuery.isNotBlank()) "No matching apps found" else "No usage recorded for this period",
-                                    color = Color(0xFF6B7280),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                     fontSize = 14.sp
                                 )
                             }
@@ -314,22 +312,22 @@ fun UsageStatsRoute(
     if (showHelpDialog) {
         AlertDialog(
             onDismissRequest = { showHelpDialog = false },
-            title = { Text("About Usage Stats", color = Color.White, fontWeight = FontWeight.Bold) },
+            title = { Text("About Usage Stats", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("• Daily tab displays usage for a specific day.", color = Color(0xFFCBD5E1), fontSize = 13.sp)
-                    Text("• Weekly tab aggregates usage across Monday to Sunday.", color = Color(0xFFCBD5E1), fontSize = 13.sp)
-                    Text("• Filter chips allow focusing on Distracting, Productive, or Other apps.", color = Color(0xFFCBD5E1), fontSize = 13.sp)
-                    Text("• Tap any app in the list to set daily usage limits or change its category.", color = Color(0xFFCBD5E1), fontSize = 13.sp)
-                    Text("• Once a daily limit is reached, CodeUnlock locks the app until a coding problem is solved!", color = Color(0xFFCBD5E1), fontSize = 13.sp)
+                    Text("• Daily tab displays usage for a specific day.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                    Text("• Weekly tab aggregates usage across Monday to Sunday.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                    Text("• Filter chips allow focusing on Distracting, Productive, or Other apps.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                    Text("• Tap any app in the list to set daily usage limits or change its category.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                    Text("• Once a daily limit is reached, CodeUnlock locks the app until a coding problem is solved!", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                 }
             },
             confirmButton = {
                 TextButton(onClick = { showHelpDialog = false }) {
-                    Text("Got it", color = Color(0xFF3B82F6), fontWeight = FontWeight.Bold)
+                    Text("Got it", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 }
             },
-            containerColor = DarkCardSurface
+            containerColor = MaterialTheme.colorScheme.surface
         )
     }
 }
@@ -341,19 +339,20 @@ private fun TabHeader(
     isDaily: Boolean,
     onTabSelected: (Boolean) -> Unit
 ) {
+    val primary = MaterialTheme.colorScheme.primary
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .border(
                 width = 1.dp,
-                color = DarkCardBorder,
+                color = MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(16.dp)
             )
-            .background(DarkCardSurface, RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
             .padding(4.dp)
     ) {
-        val dailyColor by animateColorAsState(if (isDaily) Color(0xFF3B82F6) else Color.Transparent, label = "daily")
-        val weeklyColor by animateColorAsState(if (!isDaily) Color(0xFF3B82F6) else Color.Transparent, label = "weekly")
+        val dailyColor by animateColorAsState(if (isDaily) primary else Color.Transparent, label = "daily")
+        val weeklyColor by animateColorAsState(if (!isDaily) primary else Color.Transparent, label = "weekly")
 
         Box(
             modifier = Modifier
@@ -367,7 +366,7 @@ private fun TabHeader(
             Text(
                 text = "Daily",
                 fontWeight = if (isDaily) FontWeight.Bold else FontWeight.Medium,
-                color = if (isDaily) Color.White else Color(0xFF9CA3AF),
+                color = if (isDaily) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 14.sp
             )
         }
@@ -384,7 +383,7 @@ private fun TabHeader(
             Text(
                 text = "Weekly",
                 fontWeight = if (!isDaily) FontWeight.Bold else FontWeight.Medium,
-                color = if (!isDaily) Color.White else Color(0xFF9CA3AF),
+                color = if (!isDaily) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 14.sp
             )
         }
@@ -440,10 +439,10 @@ private fun FilterChipPill(
 ) {
     Surface(
         shape = RoundedCornerShape(20.dp),
-        color = if (isSelected) Color(0xFF272F42) else DarkCardSurface,
+        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
         border = androidx.compose.foundation.BorderStroke(
             width = 1.dp,
-            color = if (isSelected) Color(0xFF3B82F6) else DarkCardBorder
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
         ),
         modifier = Modifier.clickable { onClick() }
     ) {
@@ -462,7 +461,7 @@ private fun FilterChipPill(
             }
             Text(
                 text = label,
-                color = if (isSelected) Color.White else Color(0xFFCBD5E1),
+                color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 13.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
             )
@@ -470,7 +469,7 @@ private fun FilterChipPill(
                 Icon(
                     Icons.Default.Check,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(14.dp)
                 )
             }
@@ -499,7 +498,7 @@ private fun HeroTimeCard(
                 Icon(
                     Icons.Default.ChevronLeft,
                     contentDescription = "Previous",
-                    tint = Color(0xFF9CA3AF),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -508,7 +507,7 @@ private fun HeroTimeCard(
                 text = title,
                 fontSize = 36.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontFamily = FontFamily.SansSerif
             )
 
@@ -516,7 +515,7 @@ private fun HeroTimeCard(
                 Icon(
                     Icons.Default.ChevronRight,
                     contentDescription = "Next",
-                    tint = Color(0xFF9CA3AF),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -524,7 +523,7 @@ private fun HeroTimeCard(
 
         Text(
             text = subtitle,
-            color = Color(0xFF9CA3AF),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium
         )
@@ -544,8 +543,8 @@ private fun WeeklyStackedBarChart(
 
     Card(
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkCardSurface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, DarkCardBorder),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -598,7 +597,7 @@ private fun WeeklyStackedBarChart(
                 days.forEach { day ->
                     Text(
                         text = day.dayLabel,
-                        color = if (day.isSelected) Color(0xFF3B82F6) else if (day.isToday) Color.White else Color(0xFF6B7280),
+                        color = if (day.isSelected) MaterialTheme.colorScheme.primary else if (day.isToday) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         fontWeight = if (day.isSelected || day.isToday) FontWeight.Bold else FontWeight.Medium,
                         fontSize = 12.sp,
                         modifier = Modifier.width(28.dp),
@@ -612,19 +611,20 @@ private fun WeeklyStackedBarChart(
 
 @Composable
 private fun YAxisLine(label: String) {
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = label,
-            color = Color(0xFF4B5563),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             fontSize = 11.sp,
             modifier = Modifier.width(26.dp)
         )
         Canvas(modifier = Modifier.weight(1f).height(1.dp)) {
             drawLine(
-                color = Color(0xFF262C3D),
+                color = gridColor,
                 start = Offset(0f, 0f),
                 end = Offset(size.width, 0f),
                 strokeWidth = 1.dp.toPx()
@@ -640,6 +640,8 @@ private fun DayBarColumn(
     onClick: () -> Unit
 ) {
     val barHeightRatio = (day.totalMinutes.toFloat() / maxMinutes.toFloat()).coerceIn(0f, 1f)
+    val emptyBarColor = MaterialTheme.colorScheme.surfaceVariant
+    val accentColor = MaterialTheme.colorScheme.primary
 
     Column(
         modifier = Modifier
@@ -655,7 +657,7 @@ private fun DayBarColumn(
                 .width(16.dp)
                 .fillMaxHeight(fraction = barHeightRatio.coerceAtLeast(0.04f))
                 .clip(RoundedCornerShape(8.dp))
-                .background(if (day.totalMinutes == 0L) Color(0xFF242B3B) else Color.Transparent)
+                .background(if (day.totalMinutes == 0L) emptyBarColor else Color.Transparent)
         ) {
             if (day.totalMinutes > 0L) {
                 val distRatio = day.distractingMinutes.toFloat() / day.totalMinutes.toFloat()
@@ -700,7 +702,7 @@ private fun DayBarColumn(
                     .padding(top = 4.dp)
                     .size(4.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF3B82F6))
+                    .background(accentColor)
             )
         }
     }
@@ -756,13 +758,13 @@ private fun LegendItem(
         Column {
             Text(
                 text = duration,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold,
                 fontSize = 13.sp
             )
             Text(
                 text = label,
-                color = Color(0xFF9CA3AF),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 11.sp
             )
         }
@@ -778,8 +780,8 @@ private fun AppUsageCardRow(
 ) {
     Card(
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkCardSurface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, DarkCardBorder),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
@@ -798,7 +800,7 @@ private fun AppUsageCardRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = app.appName,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 15.sp,
                     maxLines = 1,
@@ -831,7 +833,7 @@ private fun AppUsageCardRow(
                     if (app.limitMinutes != null && app.limitMinutes > 0) {
                         Text(
                             text = "• Limit: ${UsageManager.formatMinutes(app.limitMinutes.toLong())}",
-                            color = if (app.isBlocking) Color(0xFFFF5252) else Color(0xFF9CA3AF),
+                            color = if (app.isBlocking) Color(0xFFFF5252) else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 11.sp,
                             fontWeight = if (app.isBlocking) FontWeight.Bold else FontWeight.Normal
                         )
@@ -846,14 +848,14 @@ private fun AppUsageCardRow(
             ) {
                 Text(
                     text = app.durationFormatted,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
                 )
                 Icon(
                     Icons.Default.ChevronRight,
                     contentDescription = null,
-                    tint = Color(0xFF6B7280),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -885,12 +887,12 @@ private fun AppIconAvatar(packageName: String, appName: String) {
             modifier = Modifier
                 .size(42.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFF262C3D)),
+                .background(MaterialTheme.colorScheme.outlineVariant),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = appName.take(1).uppercase(),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )
@@ -910,13 +912,11 @@ private fun AppLimitSettingDialog(
     var selectedMinutes by remember { mutableIntStateOf(app.limitMinutes ?: 0) }
     var selectedCat by remember { mutableStateOf(app.category) }
 
-    val presetMinutes = listOf(0, 15, 30, 45, 60, 90, 120, 180)
-
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = DarkCardSurface),
-            border = androidx.compose.foundation.BorderStroke(1.dp, DarkCardBorder),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
@@ -936,24 +936,24 @@ private fun AppLimitSettingDialog(
                     Column {
                         Text(
                             text = app.appName,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp
                         )
                         Text(
                             text = "Used today: ${app.durationFormatted}",
-                            color = Color(0xFF9CA3AF),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp
                         )
                     }
                 }
 
-                HorizontalDivider(color = DarkCardBorder)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                 // Category Selection
                 Text(
                     text = "App Category",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp
                 )
@@ -972,10 +972,10 @@ private fun AppLimitSettingDialog(
 
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = if (isSelected) catColor.copy(alpha = 0.2f) else Color(0xFF1E2433),
+                            color = if (isSelected) catColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
                             border = androidx.compose.foundation.BorderStroke(
                                 width = 1.dp,
-                                color = if (isSelected) catColor else DarkCardBorder
+                                color = if (isSelected) catColor else MaterialTheme.colorScheme.outlineVariant
                             ),
                             modifier = Modifier
                                 .weight(1f)
@@ -987,7 +987,7 @@ private fun AppLimitSettingDialog(
                             ) {
                                 Text(
                                     text = cat.label,
-                                    color = if (isSelected) catColor else Color(0xFF9CA3AF),
+                                    color = if (isSelected) catColor else MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontSize = 12.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                 )
@@ -996,9 +996,9 @@ private fun AppLimitSettingDialog(
                     }
                 }
 
-                HorizontalDivider(color = DarkCardBorder)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                // Daily Limit
+                // Daily Limit — heading with current value
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1006,38 +1006,48 @@ private fun AppLimitSettingDialog(
                 ) {
                     Text(
                         text = "Daily App Limit",
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp
                     )
                     Text(
-                        text = if (selectedMinutes == 0) "No Limit" else UsageManager.formatMinutes(selectedMinutes.toLong()),
-                        color = if (selectedMinutes == 0) Color(0xFF9CA3AF) else Color(0xFF3B82F6),
+                        text = if (selectedMinutes == 0) "No Limit" else {
+                            val h = selectedMinutes / 60
+                            val m = selectedMinutes % 60
+                            buildString {
+                                if (h > 0) append("${h}h ")
+                                if (m > 0) append("${m}m")
+                            }.trim()
+                        },
+                        color = if (selectedMinutes == 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp
                     )
                 }
 
-                // Preset Limit Buttons
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        LimitPill(label = "No Limit", minutes = 0, current = selectedMinutes, onSelect = { selectedMinutes = 0 }, modifier = Modifier.weight(1f))
-                        LimitPill(label = "15m", minutes = 15, current = selectedMinutes, onSelect = { selectedMinutes = 15 }, modifier = Modifier.weight(1f))
-                        LimitPill(label = "30m", minutes = 30, current = selectedMinutes, onSelect = { selectedMinutes = 30 }, modifier = Modifier.weight(1f))
-                        LimitPill(label = "45m", minutes = 45, current = selectedMinutes, onSelect = { selectedMinutes = 45 }, modifier = Modifier.weight(1f))
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        LimitPill(label = "1h", minutes = 60, current = selectedMinutes, onSelect = { selectedMinutes = 60 }, modifier = Modifier.weight(1f))
-                        LimitPill(label = "1h 30m", minutes = 90, current = selectedMinutes, onSelect = { selectedMinutes = 90 }, modifier = Modifier.weight(1f))
-                        LimitPill(label = "2h", minutes = 120, current = selectedMinutes, onSelect = { selectedMinutes = 120 }, modifier = Modifier.weight(1f))
-                        LimitPill(label = "3h", minutes = 180, current = selectedMinutes, onSelect = { selectedMinutes = 180 }, modifier = Modifier.weight(1f))
-                    }
+                // Slider (0 to 360 minutes, step 15)
+                Slider(
+                    value = selectedMinutes.toFloat(),
+                    onValueChange = { selectedMinutes = (it / 15f).roundToInt() * 15 },
+                    valueRange = 0f..360f,
+                    steps = (360 / 15) - 1, // 23 steps for 15-minute increments
+                    colors = SliderDefaults.colors(
+                        thumbColor = MaterialTheme.colorScheme.primary,
+                        activeTrackColor = MaterialTheme.colorScheme.primary,
+                        inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Quick-select chips: No Limit, 30m, 1h, 2h
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    LimitPill(label = "No Limit", minutes = 0, current = selectedMinutes, onSelect = { selectedMinutes = 0 }, modifier = Modifier.weight(1f))
+                    LimitPill(label = "30m", minutes = 30, current = selectedMinutes, onSelect = { selectedMinutes = 30 }, modifier = Modifier.weight(1f))
+                    LimitPill(label = "1h", minutes = 60, current = selectedMinutes, onSelect = { selectedMinutes = 60 }, modifier = Modifier.weight(1f))
+                    LimitPill(label = "2h", minutes = 120, current = selectedMinutes, onSelect = { selectedMinutes = 120 }, modifier = Modifier.weight(1f))
                 }
 
                 // Action Buttons
@@ -1047,17 +1057,17 @@ private fun AppLimitSettingDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Cancel", color = Color(0xFF9CA3AF))
+                        Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Button(
                         onClick = {
                             onSaveCategory(selectedCat)
                             onSaveLimit(selectedMinutes)
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Save", fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Save", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
                     }
                 }
             }
@@ -1076,10 +1086,10 @@ private fun LimitPill(
     val isSelected = minutes == current
     Surface(
         shape = RoundedCornerShape(10.dp),
-        color = if (isSelected) Color(0xFF3B82F6) else Color(0xFF1E2433),
+        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
         border = androidx.compose.foundation.BorderStroke(
             width = 1.dp,
-            color = if (isSelected) Color(0xFF3B82F6) else DarkCardBorder
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
         ),
         modifier = modifier.clickable { onSelect() }
     ) {
@@ -1089,7 +1099,7 @@ private fun LimitPill(
         ) {
             Text(
                 text = label,
-                color = if (isSelected) Color.White else Color(0xFFCBD5E1),
+                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
             )
@@ -1103,7 +1113,7 @@ private fun LimitPill(
 private fun PermissionRequiredBanner(context: Context) {
     Card(
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkCardSurface),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDC2626)),
         modifier = Modifier
             .fillMaxWidth()
@@ -1124,7 +1134,7 @@ private fun PermissionRequiredBanner(context: Context) {
                 )
                 Text(
                     text = "Usage Access Required",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
@@ -1132,7 +1142,7 @@ private fun PermissionRequiredBanner(context: Context) {
 
             Text(
                 text = "To track real daily and weekly app usage and enforce your custom app limits, CodeUnlock requires Usage Access permission.",
-                color = Color(0xFFCBD5E1),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 13.sp
             )
 
@@ -1140,7 +1150,7 @@ private fun PermissionRequiredBanner(context: Context) {
                 onClick = {
                     context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {

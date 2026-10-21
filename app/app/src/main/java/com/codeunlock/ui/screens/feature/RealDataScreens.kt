@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.EmojiEvents
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -267,7 +268,10 @@ fun ProfileRoute(
     val localHabits = remember { UsageManager.calculateLiveStats(context) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     
-    LaunchedEffect(Unit) { viewModel.loadProfile() }
+    LaunchedEffect(Unit) {
+        viewModel.loadProfile()
+        viewModel.loadBadges()
+    }
 
     var showEditHandlesDialog by remember { mutableStateOf(false) }
     var leetcodeDialogInput by remember { mutableStateOf(localSettings.leetcodeUsername.orEmpty()) }
@@ -394,7 +398,105 @@ fun ProfileRoute(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 4. Protection & Rules Card
+        // 4. Badges & Achievements Section (Integrated into Profile)
+        Text(
+            text = "Badges & Achievements",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Card(
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.EmojiEvents,
+                            contentDescription = null,
+                            tint = Color(0xFFFFC107),
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "Milestones Unlocked",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Text(
+                        text = "${state.badges.count { it.earnedAt != null }}/${state.badges.size.coerceAtLeast(1)}",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                if (state.badges.isEmpty()) {
+                    Text(
+                        text = "Complete your daily target to unlock consistency & solve streak badges!",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    state.badges.forEach { badge ->
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Text(badge.iconEmoji, fontSize = 24.sp)
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = badge.name,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = badge.description,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(Modifier.height(4.dp))
+                                    LinearProgressIndicator(
+                                        progress = { badge.progress.toFloat().coerceIn(0f, 1f) },
+                                        modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp))
+                                    )
+                                }
+                                Text(
+                                    text = if (badge.earnedAt == null) "${(badge.progress * 100).toInt()}%" else "✓ Earned",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (badge.earnedAt == null) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF4CAF50)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 5. Protection & Rules Card
         val modeLabel = when (localSettings.usageMode) {
             "strict_lock" -> "Strict Lock (Zero Quota)"
             "hardcore" -> "Hardcore (Locked until solved)"

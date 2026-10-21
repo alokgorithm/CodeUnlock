@@ -70,11 +70,27 @@ object FocusSessionStore {
     }
 
     fun getTodayFocusMinutes(context: Context): Int {
-        val now = System.currentTimeMillis()
-        val startOfDay = now - (now % 86_400_000L) // approximate midnight UTC/local window
+        val cal = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        val startOfDay = cal.timeInMillis
         val seconds = getAllSessions(context)
             .filter { it.completedAtMillis >= startOfDay }
             .sumOf { it.durationSeconds }
         return (seconds / 60L).toInt()
+    }
+
+    fun getTodaySessions(context: Context): List<FocusSessionRecord> {
+        val cal = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        val startOfDay = cal.timeInMillis
+        return getAllSessions(context).filter { it.completedAtMillis >= startOfDay }
     }
 }

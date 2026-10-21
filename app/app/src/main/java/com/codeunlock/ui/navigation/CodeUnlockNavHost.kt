@@ -39,7 +39,7 @@ import com.codeunlock.ui.screens.settings.SettingsRoute
 private val bottomNavRoutes = setOf(
     AppRoute.Dashboard.route,
     AppRoute.Tracks.route,
-    AppRoute.Badges.route,
+    AppRoute.UsageStats.route,
     AppRoute.Profile.route,
 )
 
@@ -210,7 +210,12 @@ fun CodeUnlockNavHost(
 
             composable(AppRoute.UsageStats.route) {
                 UsageStatsRoute(
-                    onBack = { navController.popBackStack() },
+                    onBack = {
+                        navController.navigate(AppRoute.Dashboard.route) {
+                            popUpTo(AppRoute.Dashboard.route) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    },
                     onOpenAppLimits = { navController.navigate(AppRoute.AppLimits.route) }
                 )
             }

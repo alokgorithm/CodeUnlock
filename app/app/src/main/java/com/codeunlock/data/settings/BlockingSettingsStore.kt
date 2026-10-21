@@ -1,6 +1,7 @@
 package com.codeunlock.data.settings
 
 import android.content.Context
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.json.JSONObject
 
 /**
@@ -28,6 +29,38 @@ object BlockingSettingsStore {
     const val KEY_LAST_SAVED_AT = "last_saved_at"
     const val KEY_LEETCODE_USERNAME = "leetcode_username"
     const val KEY_CODEFORCES_HANDLE = "codeforces_handle"
+    const val KEY_THEME_MODE = "theme_mode"
+
+    const val THEME_SYSTEM = "system"
+    const val THEME_LIGHT = "light"
+    const val THEME_DARK = "dark"
+
+    val themeModeFlow = MutableStateFlow(THEME_SYSTEM)
+    private var isThemeInitialized = false
+
+    fun initThemeMode(context: Context) {
+        if (!isThemeInitialized) {
+            val mode = getThemeMode(context)
+            themeModeFlow.value = mode
+            isThemeInitialized = true
+        }
+    }
+
+    fun getThemeMode(context: Context): String {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getString(KEY_THEME_MODE, THEME_SYSTEM) ?: THEME_SYSTEM
+    }
+
+    fun setThemeMode(context: Context, mode: String) {
+        val validMode = when (mode) {
+            THEME_LIGHT -> THEME_LIGHT
+            THEME_DARK -> THEME_DARK
+            else -> THEME_SYSTEM
+        }
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putString(KEY_THEME_MODE, validMode).apply()
+        themeModeFlow.value = validMode
+    }
 
     private const val DEFAULT_USAGE_MODE = "strict_lock"
     private const val DEFAULT_DAILY_SOLVE_TARGET = 3
@@ -42,7 +75,8 @@ object BlockingSettingsStore {
         val isFirstSetupComplete: Boolean = false,
         val lastSavedAt: Long = 0L,
         val leetcodeUsername: String? = null,
-        val codeforcesHandle: String? = null
+        val codeforcesHandle: String? = null,
+        val themeMode: String = THEME_SYSTEM
     ) {
         val hasRestrictedApps: Boolean
             get() = restrictedApps.isNotEmpty()
@@ -78,7 +112,8 @@ object BlockingSettingsStore {
             isFirstSetupComplete = prefs.getBoolean(KEY_FIRST_SETUP_COMPLETE, false),
             lastSavedAt = prefs.getLong(KEY_LAST_SAVED_AT, 0L),
             leetcodeUsername = prefs.getString(KEY_LEETCODE_USERNAME, null)?.takeIf { it.isNotBlank() },
-            codeforcesHandle = prefs.getString(KEY_CODEFORCES_HANDLE, null)?.takeIf { it.isNotBlank() }
+            codeforcesHandle = prefs.getString(KEY_CODEFORCES_HANDLE, null)?.takeIf { it.isNotBlank() },
+            themeMode = prefs.getString(KEY_THEME_MODE, THEME_SYSTEM) ?: THEME_SYSTEM
         )
     }
 
@@ -109,6 +144,7 @@ object BlockingSettingsStore {
             .putLong(KEY_LAST_SAVED_AT, settings.lastSavedAt)
             .putString(KEY_LEETCODE_USERNAME, settings.leetcodeUsername)
             .putString(KEY_CODEFORCES_HANDLE, settings.codeforcesHandle)
+            .putString(KEY_THEME_MODE, settings.themeMode)
             .apply()
     }
 

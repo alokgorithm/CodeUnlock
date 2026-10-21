@@ -1,12 +1,12 @@
 package com.codeunlock.ui.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Code
-import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
@@ -38,11 +38,11 @@ enum class BottomNavTab(
         selectedIcon = Icons.Filled.Code,
         unselectedIcon = Icons.Outlined.Code,
     ),
-    Badges(
-        route = AppRoute.Badges.route,
-        label = "Badges",
-        selectedIcon = Icons.Filled.EmojiEvents,
-        unselectedIcon = Icons.Outlined.EmojiEvents,
+    Breakdown(
+        route = AppRoute.UsageStats.route,
+        label = "Breakdown",
+        selectedIcon = Icons.Filled.BarChart,
+        unselectedIcon = Icons.Outlined.BarChart,
     ),
     Profile(
         route = AppRoute.Profile.route,
