@@ -27,6 +27,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -213,6 +214,7 @@ fun UsageStatsRoute(
                     item {
                         WeeklyStackedBarChart(
                             days = summary.daysOfWeek,
+                            selectedCategory = selectedCategory,
                             onDaySelected = { day ->
                                 isDaily = true
                                 targetDateMillis = day.dayStartMillis
@@ -225,7 +227,11 @@ fun UsageStatsRoute(
                         CategoryBreakdownLegend(
                             distractingFormatted = summary.distractingFormatted,
                             productiveFormatted = summary.productiveFormatted,
-                            othersFormatted = summary.othersFormatted
+                            othersFormatted = summary.othersFormatted,
+                            selectedCategory = selectedCategory,
+                            onCategoryClick = { cat ->
+                                selectedCategory = if (selectedCategory == cat) null else cat
+                            }
                         )
                     }
 
@@ -414,19 +420,19 @@ private fun FilterPillsRow(
         FilterChipPill(
             label = "Distracting",
             isSelected = selectedCategory == AppCategory.DISTRACTING,
-            onClick = { onSelect(AppCategory.DISTRACTING) },
+            onClick = { onSelect(if (selectedCategory == AppCategory.DISTRACTING) null else AppCategory.DISTRACTING) },
             dotColor = ColorDistracting
         )
         FilterChipPill(
             label = "Productive",
             isSelected = selectedCategory == AppCategory.PRODUCTIVE,
-            onClick = { onSelect(AppCategory.PRODUCTIVE) },
+            onClick = { onSelect(if (selectedCategory == AppCategory.PRODUCTIVE) null else AppCategory.PRODUCTIVE) },
             dotColor = ColorProductive
         )
         FilterChipPill(
             label = "Others",
             isSelected = selectedCategory == AppCategory.OTHERS,
-            onClick = { onSelect(AppCategory.OTHERS) },
+            onClick = { onSelect(if (selectedCategory == AppCategory.OTHERS) null else AppCategory.OTHERS) },
             dotColor = ColorOthers
         )
     }
@@ -537,11 +543,25 @@ private fun HeroTimeCard(
 @Composable
 private fun WeeklyStackedBarChart(
     days: List<UsageManager.DayUsageSummary>,
+    selectedCategory: AppCategory? = null,
     onDaySelected: (UsageManager.DayUsageSummary) -> Unit
 ) {
-    val maxMinutes = days.maxOfOrNull { it.totalMinutes }?.coerceAtLeast(60L) ?: 600L
-    val yMaxHours = ((maxMinutes + 119L) / 60L).coerceAtLeast(6L)
-    val yMidHours = yMaxHours / 2
+    val maxMinutes = days.maxOfOrNull {
+        when (selectedCategory) {
+            AppCategory.DISTRACTING -> it.distractingMinutes
+            AppCategory.PRODUCTIVE -> it.productiveMinutes
+            AppCategory.OTHERS -> it.othersMinutes
+            null -> it.totalMinutes
+        }
+    }?.coerceAtLeast(15L) ?: 60L
+
+    val (yTopLabel, yMidLabel, chartMaxMinutes) = if (maxMinutes <= 60L) {
+        Triple("1h", "30m", 60L)
+    } else {
+        val yMaxHours = ((maxMinutes + 119L) / 60L).coerceAtLeast(2L)
+        val yMidHours = yMaxHours / 2
+        Triple("${yMaxHours}h", "${yMidHours}h", yMaxHours * 60L)
+    }
 
     Card(
         shape = RoundedCornerShape(20.dp),
@@ -564,8 +584,8 @@ private fun WeeklyStackedBarChart(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    YAxisLine(label = "${yMaxHours}h")
-                    YAxisLine(label = "${yMidHours}h")
+                    YAxisLine(label = yTopLabel)
+                    YAxisLine(label = yMidLabel)
                     YAxisLine(label = "0h")
                 }
 
@@ -580,7 +600,8 @@ private fun WeeklyStackedBarChart(
                     days.forEach { day ->
                         DayBarColumn(
                             day = day,
-                            maxMinutes = yMaxHours * 60L,
+                            selectedCategory = selectedCategory,
+                            maxMinutes = chartMaxMinutes,
                             onClick = { onDaySelected(day) }
                         )
                     }
@@ -638,10 +659,17 @@ private fun YAxisLine(label: String) {
 @Composable
 private fun DayBarColumn(
     day: UsageManager.DayUsageSummary,
+    selectedCategory: AppCategory?,
     maxMinutes: Long,
     onClick: () -> Unit
 ) {
-    val barHeightRatio = (day.totalMinutes.toFloat() / maxMinutes.toFloat()).coerceIn(0f, 1f)
+    val heightMinutes = when (selectedCategory) {
+        AppCategory.DISTRACTING -> day.distractingMinutes
+        AppCategory.PRODUCTIVE -> day.productiveMinutes
+        AppCategory.OTHERS -> day.othersMinutes
+        null -> day.totalMinutes
+    }
+    val barHeightRatio = (heightMinutes.toFloat() / maxMinutes.toFloat()).coerceIn(0f, 1f)
     val emptyBarColor = MaterialTheme.colorScheme.surfaceVariant
     val accentColor = MaterialTheme.colorScheme.primary
 
@@ -653,59 +681,79 @@ private fun DayBarColumn(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Bottom
     ) {
-        // Stacked rounded pill bar
+        // Stacked rounded pill bar or category-filtered pill bar
         Box(
             modifier = Modifier
                 .width(16.dp)
-                .fillMaxHeight(fraction = barHeightRatio.coerceAtLeast(0.04f))
+                .fillMaxHeight(fraction = if (heightMinutes == 0L) 0.04f else barHeightRatio.coerceAtLeast(0.04f))
                 .clip(RoundedCornerShape(8.dp))
-                .background(if (day.totalMinutes == 0L) emptyBarColor else Color.Transparent)
+                .background(if (heightMinutes == 0L) emptyBarColor else Color.Transparent)
         ) {
-            if (day.totalMinutes > 0L) {
-                val distRatio = day.distractingMinutes.toFloat() / day.totalMinutes.toFloat()
-                val prodRatio = day.productiveMinutes.toFloat() / day.totalMinutes.toFloat()
-                val otherRatio = day.othersMinutes.toFloat() / day.totalMinutes.toFloat()
+            if (heightMinutes > 0L) {
+                if (selectedCategory == null) {
+                    val distRatio = day.distractingMinutes.toFloat() / day.totalMinutes.toFloat()
+                    val prodRatio = day.productiveMinutes.toFloat() / day.totalMinutes.toFloat()
+                    val otherRatio = day.othersMinutes.toFloat() / day.totalMinutes.toFloat()
 
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // Others on top (slate gray)
-                    if (otherRatio > 0f) {
-                        Box(
-                            modifier = Modifier
-                                .weight(otherRatio)
-                                .fillMaxWidth()
-                                .background(ColorOthers)
-                        )
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        // Others on top (slate gray)
+                        if (otherRatio > 0f) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(otherRatio)
+                                    .fillMaxWidth()
+                                    .background(ColorOthers)
+                            )
+                        }
+                        // Productive in middle (green)
+                        if (prodRatio > 0f) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(prodRatio)
+                                    .fillMaxWidth()
+                                    .background(ColorProductive)
+                            )
+                        }
+                        // Distracting at bottom (orange)
+                        if (distRatio > 0f) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(distRatio)
+                                    .fillMaxWidth()
+                                    .background(ColorDistracting)
+                            )
+                        }
                     }
-                    // Productive in middle (green)
-                    if (prodRatio > 0f) {
-                        Box(
-                            modifier = Modifier
-                                .weight(prodRatio)
-                                .fillMaxWidth()
-                                .background(ColorProductive)
-                        )
+                } else {
+                    val catColor = when (selectedCategory) {
+                        AppCategory.DISTRACTING -> ColorDistracting
+                        AppCategory.PRODUCTIVE -> ColorProductive
+                        AppCategory.OTHERS -> ColorOthers
                     }
-                    // Distracting at bottom (orange)
-                    if (distRatio > 0f) {
-                        Box(
-                            modifier = Modifier
-                                .weight(distRatio)
-                                .fillMaxWidth()
-                                .background(ColorDistracting)
-                        )
-                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(catColor)
+                    )
                 }
             }
         }
 
-        if (day.isSelected) {
-            Box(
-                modifier = Modifier
-                    .padding(top = 4.dp)
-                    .size(4.dp)
-                    .clip(CircleShape)
-                    .background(accentColor)
-            )
+        // Selection dot indicator (fixed height slot to keep baseline aligned)
+        Box(
+            modifier = Modifier
+                .padding(top = 4.dp)
+                .size(4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (day.isSelected) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .background(accentColor)
+                )
+            }
         }
     }
 }
@@ -716,7 +764,9 @@ private fun DayBarColumn(
 private fun CategoryBreakdownLegend(
     distractingFormatted: String,
     productiveFormatted: String,
-    othersFormatted: String
+    othersFormatted: String,
+    selectedCategory: AppCategory? = null,
+    onCategoryClick: (AppCategory) -> Unit = {}
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -726,17 +776,26 @@ private fun CategoryBreakdownLegend(
         LegendItem(
             color = ColorDistracting,
             duration = distractingFormatted,
-            label = "Distracting"
+            label = "Distracting",
+            isSelected = selectedCategory == AppCategory.DISTRACTING,
+            isDimmed = selectedCategory != null && selectedCategory != AppCategory.DISTRACTING,
+            onClick = { onCategoryClick(AppCategory.DISTRACTING) }
         )
         LegendItem(
             color = ColorProductive,
             duration = productiveFormatted,
-            label = "Productive"
+            label = "Productive",
+            isSelected = selectedCategory == AppCategory.PRODUCTIVE,
+            isDimmed = selectedCategory != null && selectedCategory != AppCategory.PRODUCTIVE,
+            onClick = { onCategoryClick(AppCategory.PRODUCTIVE) }
         )
         LegendItem(
             color = ColorOthers,
             duration = othersFormatted,
-            label = "Others"
+            label = "Others",
+            isSelected = selectedCategory == AppCategory.OTHERS,
+            isDimmed = selectedCategory != null && selectedCategory != AppCategory.OTHERS,
+            onClick = { onCategoryClick(AppCategory.OTHERS) }
         )
     }
 }
@@ -745,15 +804,24 @@ private fun CategoryBreakdownLegend(
 private fun LegendItem(
     color: Color,
     duration: String,
-    label: String
+    label: String,
+    isSelected: Boolean = false,
+    isDimmed: Boolean = false,
+    onClick: () -> Unit = {}
 ) {
+    val alpha = if (isDimmed) 0.4f else 1.0f
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 4.dp, vertical = 4.dp)
+            .alpha(alpha)
     ) {
         Box(
             modifier = Modifier
-                .size(10.dp)
+                .size(if (isSelected) 12.dp else 10.dp)
                 .clip(CircleShape)
                 .background(color)
         )
@@ -761,13 +829,14 @@ private fun LegendItem(
             Text(
                 text = duration,
                 color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Bold,
+                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
                 fontSize = 13.sp
             )
             Text(
                 text = label,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp
+                fontSize = 11.sp,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
             )
         }
     }

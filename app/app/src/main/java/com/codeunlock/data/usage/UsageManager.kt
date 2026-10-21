@@ -449,6 +449,7 @@ object UsageManager {
         val dayLabels = listOf("M", "T", "W", "T", "F", "S", "S")
         val dayNames = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
         val daysOfWeek = mutableListOf<DayUsageSummary>()
+        val dailyAppSecMaps = mutableListOf<Map<String, Long>>()
 
         for (i in 0..6) {
             val dCal = Calendar.getInstance().apply {
@@ -461,6 +462,7 @@ object UsageManager {
             var dayDistractingSec = 0L
             var dayProductiveSec = 0L
             var dayOthersSec = 0L
+            val dayPkgSecMap = mutableMapOf<String, Long>()
 
             if (dStart <= now) {
                 val queryEnd = minOf(dEnd, now)
@@ -473,16 +475,22 @@ object UsageManager {
                     .groupBy { it.packageName }
                     .mapValues { (_, entries) -> entries.maxOf { it.totalTimeInForeground } }
 
+                val maxPossibleDaySec = ((queryEnd - dStart).coerceAtLeast(0L) / 1000L).coerceAtMost(86400L)
+
                 dedupedByPkg.forEach { (pkg, foregroundMs) ->
                     val cat = AppCategoryStore.getCategory(context, pkg, settings.restrictedApps.contains(pkg))
-                    val sec = foregroundMs / 1000L
-                    when (cat) {
-                        AppCategory.DISTRACTING -> dayDistractingSec += sec
-                        AppCategory.PRODUCTIVE -> dayProductiveSec += sec
-                        AppCategory.OTHERS -> dayOthersSec += sec
+                    val sec = minOf(foregroundMs / 1000L, maxPossibleDaySec)
+                    if (sec > 0L) {
+                        dayPkgSecMap[pkg] = sec
+                        when (cat) {
+                            AppCategory.DISTRACTING -> dayDistractingSec += sec
+                            AppCategory.PRODUCTIVE -> dayProductiveSec += sec
+                            AppCategory.OTHERS -> dayOthersSec += sec
+                        }
                     }
                 }
             }
+            dailyAppSecMaps.add(dayPkgSecMap)
 
             val dDistractingMin = dayDistractingSec / 60
             val dProductiveMin = dayProductiveSec / 60
@@ -516,72 +524,63 @@ object UsageManager {
             )
         }
 
-        // Determine range for the list of apps
-        val rangeStart: Long
-        val rangeEnd: Long
-        val headerSubtitle: String
-
-        if (isDaily) {
-            val selCal = Calendar.getInstance().apply {
-                timeInMillis = targetDateMillis
-                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-            }
-            rangeStart = selCal.timeInMillis
-            rangeEnd = minOf(rangeStart + 86_400_000L - 1L, now)
-            val dateFmt = java.text.SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(java.util.Date(rangeStart))
-            headerSubtitle = if (rangeStart == todayStart) "Today - $dateFmt" else dateFmt
-        } else {
-            rangeStart = mondayMillis
-            val sundayEnd = mondayMillis + (7 * 86_400_000L) - 1L
-            rangeEnd = minOf(sundayEnd, now)
-            val startFmt = java.text.SimpleDateFormat("d MMM", Locale.getDefault()).format(java.util.Date(rangeStart))
-            val endFmt = java.text.SimpleDateFormat("d MMM", Locale.getDefault()).format(java.util.Date(sundayEnd))
-            headerSubtitle = "$startFmt - $endFmt"
-        }
-
-        val rangeStats = usm.queryUsageStats(UsageStatsManager.INTERVAL_BEST, rangeStart, rangeEnd) ?: emptyList()
+        val baseHeaderSubtitle: String
         val appDurationMap = mutableMapOf<String, Long>()
+        val totalDistractingMin: Long
+        val totalProductiveMin: Long
+        val totalOthersMin: Long
+        val totalMin: Long
 
-        val maxPossibleAppSec = if (isDaily) ((rangeEnd - rangeStart).coerceAtLeast(0L) / 1000L).coerceAtMost(86400L) else (7 * 86400L)
-
-        // Deduplicate: take MAX foreground time per package across all returned buckets
-        // to prevent double-counting from overlapping INTERVAL_DAILY buckets.
         if (isDaily) {
-            // Single day: group by package, take max
-            rangeStats.filter { it.totalTimeInForeground > 0 && isValidPackage(context, it.packageName) }
-                .groupBy { it.packageName }
-                .forEach { (pkg, entries) ->
-                    val sec = entries.maxOf { it.totalTimeInForeground } / 1000L
-                    appDurationMap[pkg] = minOf(sec, maxPossibleAppSec)
-                }
+            val selectedIdx = daysOfWeek.indexOfFirst { it.isSelected }.takeIf { it >= 0 }
+                ?: daysOfWeek.indexOfFirst { it.isToday }.takeIf { it >= 0 }
+                ?: 0
+            val selectedDay = daysOfWeek[selectedIdx]
+            val dateFmt = selectedDay.dateText
+            baseHeaderSubtitle = if (selectedDay.isToday) "Today - $dateFmt" else dateFmt
+
+            // App durations directly from the selected day's query map
+            val dayMap = dailyAppSecMaps.getOrElse(selectedIdx) { emptyMap() }
+            appDurationMap.putAll(dayMap)
+
+            totalDistractingMin = selectedDay.distractingMinutes
+            totalProductiveMin = selectedDay.productiveMinutes
+            totalOthersMin = selectedDay.othersMinutes
+            totalMin = selectedDay.totalMinutes
         } else {
-            // Weekly: group by (package + day bucket), take max per bucket, then sum across days
-            rangeStats.filter { it.totalTimeInForeground > 0 && isValidPackage(context, it.packageName) }
-                .groupBy { stat ->
-                    val dayBucket = (stat.lastTimeUsed / 86_400_000L) // day-level bucket
-                    "${stat.packageName}|$dayBucket"
+            val startFmt = java.text.SimpleDateFormat("d MMM", Locale.getDefault()).format(java.util.Date(mondayMillis))
+            val sundayEnd = mondayMillis + (7 * 86_400_000L) - 1L
+            val endFmt = java.text.SimpleDateFormat("d MMM", Locale.getDefault()).format(java.util.Date(sundayEnd))
+            baseHeaderSubtitle = "$startFmt - $endFmt"
+
+            // App durations summed across all 7 days of the week
+            for (dayMap in dailyAppSecMaps) {
+                for ((pkg, sec) in dayMap) {
+                    appDurationMap[pkg] = (appDurationMap[pkg] ?: 0L) + sec
                 }
-                .forEach { (key, entries) ->
-                    val pkg = key.substringBefore("|")
-                    val maxForBucket = entries.maxOf { it.totalTimeInForeground } / 1000L
-                    val prev = appDurationMap[pkg] ?: 0L
-                    appDurationMap[pkg] = minOf(prev + maxForBucket, maxPossibleAppSec)
-                }
+            }
+
+            totalDistractingMin = daysOfWeek.sumOf { it.distractingMinutes }
+            totalProductiveMin = daysOfWeek.sumOf { it.productiveMinutes }
+            totalOthersMin = daysOfWeek.sumOf { it.othersMinutes }
+            totalMin = totalDistractingMin + totalProductiveMin + totalOthersMin
         }
 
-        var totalDistractingSec = 0L
-        var totalProductiveSec = 0L
-        var totalOthersSec = 0L
+        // Dynamically reflect the selected category filter in hero time and subtitle
+        val (displayedMinutes, categorySuffix) = when (filterCategory) {
+            AppCategory.DISTRACTING -> totalDistractingMin to " • Distracting"
+            AppCategory.PRODUCTIVE -> totalProductiveMin to " • Productive"
+            AppCategory.OTHERS -> totalOthersMin to " • Others"
+            null -> totalMin to ""
+        }
+
+        val headerTitle = formatMinutes(displayedMinutes)
+        val headerSubtitle = baseHeaderSubtitle + categorySuffix
 
         val appDetails = appDurationMap.mapNotNull { (pkg, sec) ->
+            if (sec <= 0L) return@mapNotNull null
             val isRestricted = settings.restrictedApps.contains(pkg)
             val cat = AppCategoryStore.getCategory(context, pkg, isRestricted)
-            when (cat) {
-                AppCategory.DISTRACTING -> totalDistractingSec += sec
-                AppCategory.PRODUCTIVE -> totalProductiveSec += sec
-                AppCategory.OTHERS -> totalOthersSec += sec
-            }
 
             val label = runCatching {
                 pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
@@ -610,16 +609,9 @@ object UsageManager {
             .filter { searchQuery.isBlank() || it.appName.contains(searchQuery, ignoreCase = true) || it.packageName.contains(searchQuery, ignoreCase = true) }
             .sortedByDescending { it.durationSeconds }
 
-        val totalDistractingMin = totalDistractingSec / 60
-        val totalProductiveMin = totalProductiveSec / 60
-        val totalOthersMin = totalOthersSec / 60
-        val rawTotalMin = totalDistractingMin + totalProductiveMin + totalOthersMin
-        // Cap daily view to 24h max; weekly can exceed since it's across 7 days
-        val totalMin = if (isDaily) rawTotalMin.coerceAtMost(1440L) else rawTotalMin
-
         return UsageStatsSummary(
             isDaily = isDaily,
-            headerTitle = formatMinutes(totalMin),
+            headerTitle = headerTitle,
             headerSubtitle = headerSubtitle,
             distractingMinutes = totalDistractingMin,
             distractingFormatted = formatMinutes(totalDistractingMin),
