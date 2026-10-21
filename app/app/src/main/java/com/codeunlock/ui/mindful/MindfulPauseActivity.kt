@@ -7,6 +7,10 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import com.codeunlock.data.settings.BlockingSettingsStore
 import com.codeunlock.data.settings.ReelsBlockingStore
 import com.codeunlock.data.unlock.UnlockSessionStore
 import com.codeunlock.service.ConsumedTimeStore
@@ -29,7 +33,15 @@ class MindfulPauseActivity : ComponentActivity() {
         val pauseSeconds = ReelsBlockingStore.read(this).mindfulPauseSeconds
 
         setContent {
-            CodeUnlockTheme {
+            val themeMode by BlockingSettingsStore.themeModeFlow.collectAsState()
+            val systemDark = isSystemInDarkTheme()
+            val isDark = when (themeMode) {
+                BlockingSettingsStore.THEME_LIGHT -> false
+                BlockingSettingsStore.THEME_DARK -> true
+                else -> systemDark
+            }
+
+            CodeUnlockTheme(darkTheme = isDark) {
                 MindfulPauseScreen(
                     appName = appName,
                     pauseDurationSeconds = pauseSeconds,

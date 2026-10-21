@@ -18,6 +18,9 @@ import com.codeunlock.ui.screens.lock.LockScreenState
 import com.codeunlock.ui.theme.CodeUnlockTheme
 import dagger.hilt.android.AndroidEntryPoint
 
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.activity.OnBackPressedCallback
 
 /**
@@ -97,7 +100,15 @@ class LockActivity : ComponentActivity() {
         )
 
         setContent {
-            CodeUnlockTheme {
+            val themeMode by BlockingSettingsStore.themeModeFlow.collectAsState()
+            val systemDark = isSystemInDarkTheme()
+            val isDark = when (themeMode) {
+                BlockingSettingsStore.THEME_LIGHT -> false
+                BlockingSettingsStore.THEME_DARK -> true
+                else -> systemDark
+            }
+
+            CodeUnlockTheme(darkTheme = isDark) {
                 LockScreen(
                     state           = lockScreenState,
                     onSolveToUnlock = {

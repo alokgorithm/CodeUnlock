@@ -2,12 +2,18 @@ package com.codeunlock.ui.screens.feature
 
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.filled.BrightnessAuto
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.clickable
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -496,7 +502,67 @@ fun ProfileRoute(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 5. Protection & Rules Card
+        // 5. Appearance & Theme Section
+        Text(
+            text = "Appearance & Theme",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        val currentThemeMode by BlockingSettingsStore.themeModeFlow.collectAsState()
+        val themeOptions = listOf(
+            Triple(BlockingSettingsStore.THEME_SYSTEM, "System", Icons.Default.BrightnessAuto),
+            Triple(BlockingSettingsStore.THEME_LIGHT, "Light", Icons.Default.LightMode),
+            Triple(BlockingSettingsStore.THEME_DARK, "Dark", Icons.Default.DarkMode)
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            themeOptions.forEach { (mode, label, icon) ->
+                val isSelected = currentThemeMode == mode
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable {
+                            BlockingSettingsStore.setThemeMode(context, mode)
+                        },
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                    border = androidx.compose.foundation.BorderStroke(
+                        if (isSelected) 1.5.dp else 1.dp,
+                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 6. Protection & Rules Card
         val modeLabel = when (localSettings.usageMode) {
             "strict_lock" -> "Strict Lock (Zero Quota)"
             "hardcore" -> "Hardcore (Locked until solved)"

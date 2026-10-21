@@ -15,13 +15,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -46,6 +49,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -389,6 +393,27 @@ private fun DashboardHeader(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val currentTheme by BlockingSettingsStore.themeModeFlow.collectAsState()
+            val isDarkSystem = isSystemInDarkTheme()
+            val isDark = when (currentTheme) {
+                BlockingSettingsStore.THEME_LIGHT -> false
+                BlockingSettingsStore.THEME_DARK -> true
+                else -> isDarkSystem
+            }
+
+            IconButton(
+                onClick = {
+                    val nextTheme = if (isDark) BlockingSettingsStore.THEME_LIGHT else BlockingSettingsStore.THEME_DARK
+                    BlockingSettingsStore.setThemeMode(context, nextTheme)
+                }
+            ) {
+                Icon(
+                    imageVector = if (isDark) Icons.Default.LightMode else Icons.Default.DarkMode,
+                    contentDescription = if (isDark) "Switch to Light Mode" else "Switch to Dark Mode",
+                    tint = MaterialTheme.colorScheme.onBackground
+                )
+            }
             IconButton(onClick = onOpenSettings) {
                 Icon(Icons.Default.Settings, contentDescription = "Settings")
             }

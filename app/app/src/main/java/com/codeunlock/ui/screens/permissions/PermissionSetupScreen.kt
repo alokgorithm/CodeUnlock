@@ -735,9 +735,9 @@ private fun PermissionsStepContent(
             Card(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFE8F5E9),
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f),
                 ),
-                border = BorderStroke(1.dp, Color(0xFF81C784)),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f)),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
@@ -748,7 +748,7 @@ private fun PermissionsStepContent(
                     Icon(
                         imageVector = Icons.Outlined.CheckCircle,
                         contentDescription = null,
-                        tint = Color(0xFF2E7D32),
+                        tint = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.size(32.dp),
                     )
                     Column {
@@ -756,12 +756,12 @@ private fun PermissionsStepContent(
                             text = "All Permissions Active! 🎉",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1B5E20),
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
                             text = "Both permissions detected. Tap 'Next: Select Apps ✓' below to proceed.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF2E7D32),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -1082,9 +1082,9 @@ private fun PermissionCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isGranted) Color(0xFFF1F8E9) else MaterialTheme.colorScheme.surface,
+            containerColor = if (isGranted) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface,
         ),
-        border = if (isGranted) BorderStroke(1.dp, Color(0xFFA5D6A7)) else null,
+        border = if (isGranted) BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f)) else null,
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Column(
@@ -1100,7 +1100,7 @@ private fun PermissionCard(
             ) {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = if (isGranted) Color(0xFFC8E6C9) else MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+                    color = if (isGranted) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
                 ) {
                     Box(
                         modifier = Modifier.padding(12.dp),
@@ -1109,7 +1109,7 @@ private fun PermissionCard(
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = if (isGranted) Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary,
+                            tint = if (isGranted) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
@@ -1117,8 +1117,8 @@ private fun PermissionCard(
                 if (isGranted) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFE8F5E9),
-                        border = BorderStroke(1.dp, Color(0xFF81C784)),
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f)),
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -1129,12 +1129,12 @@ private fun PermissionCard(
                                 imageVector = Icons.Outlined.CheckCircle,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp),
-                                tint = Color(0xFF2E7D32),
+                                tint = MaterialTheme.colorScheme.secondary,
                             )
                             Text(
                                 text = "Granted ✓",
                                 style = MaterialTheme.typography.labelMedium,
-                                color = Color(0xFF2E7D32),
+                                color = MaterialTheme.colorScheme.secondary,
                                 fontWeight = FontWeight.Bold,
                             )
                         }
@@ -1163,9 +1163,9 @@ private fun PermissionCard(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color(0xFF2E7D32),
+                        contentColor = MaterialTheme.colorScheme.secondary,
                     ),
-                    border = BorderStroke(1.dp, Color(0xFF81C784)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)),
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.CheckCircle,
