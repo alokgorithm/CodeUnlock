@@ -12,6 +12,7 @@ object ReelsBlockingStore {
 
     const val KEY_REELS_BLOCKED = "reels_blocked"
     const val KEY_SHORTS_BLOCKED = "shorts_blocked"
+    const val KEY_SPOTLIGHT_BLOCKED = "spotlight_blocked"
     const val KEY_ONE_VIDEO_RULE = "one_video_rule"
     const val KEY_MINDFUL_PAUSE = "mindful_pause_enabled"
     const val KEY_MINDFUL_PAUSE_SECONDS = "mindful_pause_seconds"
@@ -19,6 +20,7 @@ object ReelsBlockingStore {
     data class ReelsSettings(
         val reelsBlocked: Boolean = true,
         val shortsBlocked: Boolean = true,
+        val spotlightBlocked: Boolean = true,
         val oneVideoRule: Boolean = true,
         val mindfulPauseEnabled: Boolean = true,
         val mindfulPauseSeconds: Int = 5
@@ -33,6 +35,7 @@ object ReelsBlockingStore {
         val settings = ReelsSettings(
             reelsBlocked = prefs.getBoolean(KEY_REELS_BLOCKED, true),
             shortsBlocked = prefs.getBoolean(KEY_SHORTS_BLOCKED, true),
+            spotlightBlocked = prefs.getBoolean(KEY_SPOTLIGHT_BLOCKED, true),
             oneVideoRule = prefs.getBoolean(KEY_ONE_VIDEO_RULE, true),
             mindfulPauseEnabled = prefs.getBoolean(KEY_MINDFUL_PAUSE, true),
             mindfulPauseSeconds = prefs.getInt(KEY_MINDFUL_PAUSE_SECONDS, 5)
@@ -47,6 +50,7 @@ object ReelsBlockingStore {
         prefs.edit()
             .putBoolean(KEY_REELS_BLOCKED, settings.reelsBlocked)
             .putBoolean(KEY_SHORTS_BLOCKED, settings.shortsBlocked)
+            .putBoolean(KEY_SPOTLIGHT_BLOCKED, settings.spotlightBlocked)
             .putBoolean(KEY_ONE_VIDEO_RULE, settings.oneVideoRule)
             .putBoolean(KEY_MINDFUL_PAUSE, settings.mindfulPauseEnabled)
             .putInt(KEY_MINDFUL_PAUSE_SECONDS, settings.mindfulPauseSeconds)

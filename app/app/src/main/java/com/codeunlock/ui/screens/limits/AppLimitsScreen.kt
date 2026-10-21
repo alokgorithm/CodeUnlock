@@ -8,11 +8,14 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
@@ -34,6 +37,7 @@ import coil.compose.AsyncImage
 import com.codeunlock.data.settings.BlockingSettingsStore
 import com.codeunlock.data.settings.ReelsBlockingStore
 import com.codeunlock.data.settings.StrictModeStore
+import com.codeunlock.data.settings.WebsitesBlockingStore
 import com.codeunlock.data.usage.UsageManager
 
 private val ProGold = Color(0xFFFFC107)
@@ -67,7 +71,9 @@ fun AppLimitsRoute(
 
     var blockSplitScreen by rememberSaveable { mutableStateOf(false) }
     var blockFloatingWindow by rememberSaveable { mutableStateOf(false) }
-    var blockWebsites by rememberSaveable { mutableStateOf(false) }
+    var showBlockWebsitesDialog by remember { mutableStateOf(false) }
+    val isWebsitesBlocked = remember(reloadTrigger) { WebsitesBlockingStore.isEnabled(context) }
+    val blockedWebsites = remember(reloadTrigger) { WebsitesBlockingStore.getBlockedDomains(context) }
 
     var showAddAppDialog by remember { mutableStateOf(false) }
     var selectedAppToEdit by remember { mutableStateOf<LimitedAppDisplay?>(null) }
@@ -281,11 +287,11 @@ fun AppLimitsRoute(
                 BlockToggleCard(
                     title = "Snapchat Spotlight",
                     emoji = "👻",
-                    isActive = reelsSettings.mindfulPauseEnabled,
+                    isActive = reelsSettings.spotlightBlocked,
                     onToggle = { active ->
                         ReelsBlockingStore.write(
                             context,
-                            reelsSettings.copy(mindfulPauseEnabled = active)
+                            reelsSettings.copy(spotlightBlocked = active)
                         )
                         reloadTrigger++
                     }
@@ -299,10 +305,19 @@ fun AppLimitsRoute(
 
             item {
                 BlockToggleCard(
-                    title = "Block Websites",
+                    title = if (isWebsitesBlocked) "Block Websites (${blockedWebsites.size})" else "Block Websites",
                     emoji = "🌐",
-                    isActive = blockWebsites,
-                    onToggle = { blockWebsites = it }
+                    isActive = isWebsitesBlocked,
+                    onToggle = { active ->
+                        WebsitesBlockingStore.setEnabled(context, active)
+                        reloadTrigger++
+                        if (active) {
+                            showBlockWebsitesDialog = true
+                        }
+                    },
+                    onCardClick = {
+                        showBlockWebsitesDialog = true
+                    }
                 )
             }
 
@@ -404,6 +419,15 @@ fun AppLimitsRoute(
                 }
             },
             containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
+
+    // Block Websites Configuration Dialog
+    if (showBlockWebsitesDialog) {
+        BlockWebsitesDialog(
+            context = context,
+            onDismiss = { showBlockWebsitesDialog = false },
+            onReload = { reloadTrigger++ }
         )
     }
 }
@@ -531,13 +555,16 @@ private fun BlockToggleCard(
     title: String,
     emoji: String,
     isActive: Boolean,
-    onToggle: (Boolean) -> Unit
+    onToggle: (Boolean) -> Unit,
+    onCardClick: (() -> Unit)? = null
 ) {
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onCardClick != null) Modifier.clickable { onCardClick() } else Modifier)
     ) {
         Row(
             modifier = Modifier
@@ -977,6 +1004,194 @@ private fun AppIconAvatar(packageName: String, appName: String) {
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )
+        }
+    }
+}
+
+// ── Block Websites Configuration Dialog ──────────────────────────────────
+
+@Composable
+private fun BlockWebsitesDialog(
+    context: Context,
+    onDismiss: () -> Unit,
+    onReload: () -> Unit
+) {
+    var isEnabled by remember { mutableStateOf(WebsitesBlockingStore.isEnabled(context)) }
+    var blockedDomains by remember { mutableStateOf(WebsitesBlockingStore.getBlockedDomains(context)) }
+    var newDomainInput by remember { mutableStateOf("") }
+
+    val quickAddSuggestions = listOf("tiktok.com", "instagram.com", "twitter.com", "reddit.com", "facebook.com", "twitch.tv", "netflix.com")
+        .filter { !blockedDomains.contains(it) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Block Websites",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Intercepts URLs in mobile browsers",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = isEnabled,
+                        onCheckedChange = { active ->
+                            isEnabled = active
+                            WebsitesBlockingStore.setEnabled(context, active)
+                            onReload()
+                        }
+                    )
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                // Input field to add custom domain
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = newDomainInput,
+                        onValueChange = { newDomainInput = it },
+                        placeholder = { Text("e.g. reddit.com", fontSize = 13.sp) },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    Button(
+                        onClick = {
+                            if (newDomainInput.isNotBlank()) {
+                                WebsitesBlockingStore.addDomain(context, newDomainInput)
+                                blockedDomains = WebsitesBlockingStore.getBlockedDomains(context)
+                                newDomainInput = ""
+                                onReload()
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Add")
+                    }
+                }
+
+                // Quick add suggestion chips
+                if (quickAddSuggestions.isNotEmpty()) {
+                    Text(
+                        text = "Quick Add:",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        quickAddSuggestions.take(4).forEach { domain ->
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier.clickable {
+                                    WebsitesBlockingStore.addDomain(context, domain)
+                                    blockedDomains = WebsitesBlockingStore.getBlockedDomains(context)
+                                    onReload()
+                                }
+                            ) {
+                                Text(
+                                    text = "+ $domain",
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Blocked domains list
+                Text(
+                    text = "Blocked Domains (${blockedDomains.size}):",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.heightIn(max = 200.dp).verticalScroll(rememberScrollState())
+                ) {
+                    if (blockedDomains.isEmpty()) {
+                        Text("No domains blocked yet.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        blockedDomains.forEach { domain ->
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = domain,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    IconButton(
+                                        onClick = {
+                                            WebsitesBlockingStore.removeDomain(context, domain)
+                                            blockedDomains = WebsitesBlockingStore.getBlockedDomains(context)
+                                            onReload()
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Remove",
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Done", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
         }
     }
 }

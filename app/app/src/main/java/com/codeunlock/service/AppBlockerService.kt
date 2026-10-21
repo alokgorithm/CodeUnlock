@@ -82,9 +82,12 @@ class AppBlockerService : AccessibilityService() {
         // Keep heartbeat alive at most once per 60s
         ServiceAliveStore.heartbeat(applicationContext)
 
-        // Delegate surgical Reels and Shorts inspection ONLY when package is Instagram or YouTube
+        // Delegate surgical Reels, Shorts, Spotlight, and Browser website inspection
         if (::reelsInterceptor.isInitialized &&
-            (packageName == ReelsShortsInterceptor.PACKAGE_INSTAGRAM || packageName == ReelsShortsInterceptor.PACKAGE_YOUTUBE)) {
+            (packageName == ReelsShortsInterceptor.PACKAGE_INSTAGRAM ||
+             packageName == ReelsShortsInterceptor.PACKAGE_YOUTUBE ||
+             packageName == ReelsShortsInterceptor.PACKAGE_SNAPCHAT ||
+             ReelsShortsInterceptor.BROWSER_PACKAGES.contains(packageName))) {
             reelsInterceptor.onAccessibilityEvent(event)
         }
 
