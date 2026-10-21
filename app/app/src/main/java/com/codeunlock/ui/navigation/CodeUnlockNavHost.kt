@@ -40,6 +40,7 @@ private val bottomNavRoutes = setOf(
     AppRoute.Dashboard.route,
     AppRoute.Tracks.route,
     AppRoute.UsageStats.route,
+    AppRoute.Wellbeing.route,
     AppRoute.Profile.route,
 )
 
