@@ -92,6 +92,9 @@ import com.codeunlock.data.progress.DailyProgressStore
 import com.codeunlock.data.session.SessionManager
 import com.codeunlock.data.settings.BlockingSettingsStore
 import com.codeunlock.data.unlock.UnlockSessionStore
+import com.codeunlock.ui.components.mascot.FocusBuddyCard
+import com.codeunlock.ui.components.mascot.FocusBuddyMascot
+import com.codeunlock.ui.components.mascot.FocusBuddyMood
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.LocalDate
@@ -255,6 +258,20 @@ fun DashboardScreen(
                 if (state.errorMessage != null) {
                     ErrorBanner(message = state.errorMessage)
                 }
+
+                // Focus Buddy Companion Card (Kodi the Coding Fox)
+                FocusBuddyCard(
+                    streakDays = state.currentStreak,
+                    solvedCount = state.problemsSolvedToday,
+                    dailyTarget = state.dailyTarget,
+                    remainingMinutes = state.remainingUnlockMinutes,
+                    isFocusActive = false,
+                    onStartFocus = onOpenFocus,
+                    onSolveProblem = {
+                        val id = state.nextProblem?.id ?: 1
+                        onOpenProblem(id)
+                    }
+                )
 
                 ProgressHero(
                     solved = state.problemsSolvedToday,

@@ -2,6 +2,9 @@ package com.codeunlock.ui.screens.feature
 
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Text
+import com.codeunlock.ui.components.mascot.FocusBuddyMascot
+import com.codeunlock.ui.components.mascot.FocusBuddyMood
 import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Edit
@@ -36,7 +39,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -296,6 +298,43 @@ fun ProfileRoute(
             avatarEmoji = profile.avatarEmoji.ifBlank { "⚡" },
             isOnline = state.profile != null && profile.id != "local-user"
         )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Focus Companion Mascot Status Card (Kodi)
+        Card(
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+            ),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                FocusBuddyMascot(
+                    size = 56.dp,
+                    mood = FocusBuddyMood.HAPPY,
+                    showHeadphones = true
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Focus Companion: Kodi",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Level ${((profile.statsSummary.totalVerifiedSolves / 5) + 1).coerceAtLeast(1)} Fox Companion • Always guarding your focus!",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 

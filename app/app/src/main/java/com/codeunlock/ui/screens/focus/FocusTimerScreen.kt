@@ -42,6 +42,8 @@ import com.codeunlock.audio.AmbientSoundManager
 import com.codeunlock.audio.AmbientSoundType
 import com.codeunlock.data.focus.FocusSessionStore
 import com.codeunlock.service.FocusTimerService
+import com.codeunlock.ui.components.mascot.FocusBuddyMascot
+import com.codeunlock.ui.components.mascot.FocusBuddyMood
 
 private val PRESET_SUBJECTS = listOf(
     "Dynamic Programming",
@@ -259,6 +261,45 @@ fun FocusTimerScreen(
                         )
                     }
                 }
+            }
+
+            // Kodi Focus Companion Mascot
+            val mascotMood = when {
+                isBreakTime -> FocusBuddyMood.CHEERING
+                isRunning && !isPaused -> FocusBuddyMood.FOCUS
+                isPaused -> FocusBuddyMood.SLEEPING
+                else -> FocusBuddyMood.IDLE
+            }
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(vertical = 4.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Text(
+                        text = when {
+                            isBreakTime -> "☕ \"Take a breather! You earned it!\""
+                            isRunning && !isPaused -> "🎧 \"Locked in! Deep focus mode.\""
+                            isPaused -> "⏸️ \"Session paused. Ready when you are.\""
+                            else -> "🦊 \"Kodi is ready to focus with you!\""
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                    )
+                }
+
+                FocusBuddyMascot(
+                    size = 96.dp,
+                    mood = mascotMood,
+                    showHeadphones = true
+                )
             }
 
             // Central Circular Countdown Arc
