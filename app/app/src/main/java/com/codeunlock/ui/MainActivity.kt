@@ -10,7 +10,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.codeunlock.data.settings.BlockingSettingsStore
 import com.codeunlock.service.FocusTimerService
 import com.codeunlock.ui.navigation.AppRoute
@@ -26,9 +25,8 @@ class MainActivity : ComponentActivity() {
         get() = intent?.getStringExtra(EXTRA_INITIAL_ROUTE)
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
-        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         BlockingSettingsStore.initThemeMode(this)
 
         val routeFromIntent = initialRoute

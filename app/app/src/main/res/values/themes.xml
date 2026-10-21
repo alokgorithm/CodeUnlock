@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Base application theme — used by splash + activities -->
+    <!-- Base application theme — used after splash + activities -->
     <style name="Theme.CodeUnlock" parent="android:Theme.Material.Light.NoActionBar">
         <!-- Transparent system bars for edge-to-edge -->
         <item name="android:statusBarColor">@android:color/transparent</item>
@@ -10,14 +10,16 @@
         <item name="android:windowLightNavigationBar">true</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
         <item name="android:windowShowWallpaper">false</item>
-        <!-- White background prevents black flash before Compose renders -->
-        <item name="android:windowBackground">@android:color/white</item>
+        <!-- Adaptive background prevents flash before Compose renders -->
+        <item name="android:windowBackground">@color/window_background</item>
         <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
     </style>
 
     <!-- Splash screen theme — applied to MainActivity in manifest -->
-    <style name="Theme.CodeUnlock.Splash" parent="Theme.CodeUnlock">
-        <item name="android:windowBackground">@android:color/white</item>
+    <style name="Theme.CodeUnlock.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.CodeUnlock</item>
     </style>
 
 </resources>
