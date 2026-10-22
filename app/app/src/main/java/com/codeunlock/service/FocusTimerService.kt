@@ -217,12 +217,6 @@ class FocusTimerService : Service() {
             .build()
     }
 
-    private fun formatTime(sec: Long): String {
-        val m = sec / 60
-        val s = sec % 60
-        return "%02d:%02d".format(m, s)
-    }
-
     override fun onDestroy() {
         super.onDestroy()
         FloatingFocusTimerOverlay.dismiss()
@@ -233,6 +227,11 @@ class FocusTimerService : Service() {
     }
 
     companion object {
+        fun formatTime(sec: Long): String {
+            val m = sec / 60
+            val s = sec % 60
+            return "%02d:%02d".format(m, s)
+        }
         const val ACTION_START = "com.codeunlock.action.START_FOCUS"
         const val ACTION_PAUSE = "com.codeunlock.action.PAUSE_FOCUS"
         const val ACTION_RESUME = "com.codeunlock.action.RESUME_FOCUS"

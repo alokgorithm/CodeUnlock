@@ -39,7 +39,7 @@
         <!-- Lock Screen Activity (overlay when blocked) -->
         <activity
             android:name=".ui.lock.LockActivity"
-            android:exported="false"
+            android:exported="true"
             android:excludeFromRecents="true"
             android:launchMode="singleTask"
             android:showWhenLocked="true"

@@ -38,8 +38,16 @@ object FloatingFocusTimerOverlay {
     private var statusDotView: View? = null
     private var iconTextView: TextView? = null
     private var isShown = false
+    private var isSuppressed = false
 
     private val mainHandler = Handler(Looper.getMainLooper())
+
+    fun setSuppressed(suppressed: Boolean) {
+        mainHandler.post {
+            isSuppressed = suppressed
+            overlayView?.visibility = if (suppressed) View.GONE else View.VISIBLE
+        }
+    }
 
     @SuppressLint("ClickableViewAccessibility")
     fun show(context: Context, initialTimeText: String = "25:00") {
@@ -194,6 +202,9 @@ object FloatingFocusTimerOverlay {
                 wm.addView(container, params)
                 overlayView = container
                 isShown = true
+                if (isSuppressed) {
+                    container.visibility = View.GONE
+                }
             } catch (e: Exception) {
                 isShown = false
                 overlayView = null
@@ -204,6 +215,9 @@ object FloatingFocusTimerOverlay {
     fun update(timeText: String, isPaused: Boolean = false, isBreakTime: Boolean = false) {
         mainHandler.post {
             if (!isShown || overlayView == null) return@post
+            if (isSuppressed) {
+                overlayView?.visibility = View.GONE
+            }
 
             timerTextView?.text = timeText
 

@@ -291,6 +291,12 @@ fun CodeUnlockNavHost(
                             popUpTo(AppRoute.Dashboard.route) { inclusive = false }
                             launchSingleTop = true
                         }
+                    },
+                    onReturnToFocusSession = {
+                        navController.navigate(AppRoute.Focus.route) {
+                            popUpTo(AppRoute.Dashboard.route) { inclusive = false }
+                            launchSingleTop = true
+                        }
                     }
                 )
             }
