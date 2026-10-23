@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Security
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -527,8 +528,7 @@ private fun PermissionSetupScreen(
     modifier: Modifier = Modifier,
 ) {
     val nextButtonLabel = when (step) {
-        OnboardingStep.Permissions ->
-            if (isAccessibilityGranted && isUsageStatsGranted && isOverlayGranted) "Next: Select Apps ✓" else "Next: Select Apps"
+        OnboardingStep.Permissions -> "Next: Select Apps"
         OnboardingStep.RestrictApps -> "Next: Choose Mode"
         OnboardingStep.ModeAndTarget -> "Next: Link Accounts"
         OnboardingStep.LinkAccounts -> "Next: Review Settings"
@@ -816,9 +816,9 @@ private fun PermissionsStepContent(
             Card(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
                 ),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f)),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
@@ -829,20 +829,20 @@ private fun PermissionsStepContent(
                     Icon(
                         imageVector = Icons.Outlined.CheckCircle,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp),
                     )
                     Column {
                         Text(
-                            text = "All Permissions Active! 🎉",
+                            text = "All Permissions Ready",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
                         Text(
-                            text = "All 3 permissions detected. Tap 'Next: Select Apps ✓' below to proceed.",
+                            text = "All required permissions are active. Tap Next to continue.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.85f),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
                         )
                     }
                 }
@@ -850,7 +850,7 @@ private fun PermissionsStepContent(
         }
 
         PermissionCard(
-            icon = if (isAccessibilityGranted) Icons.Outlined.CheckCircle else Icons.Outlined.Lock,
+            icon = Icons.Outlined.Lock,
             title = "Accessibility Permission",
             description = "Required to detect foreground apps and launch the blocking overlay when a restricted app is opened.",
             actionLabel = "Open Accessibility Settings",
@@ -859,7 +859,7 @@ private fun PermissionsStepContent(
         )
 
         PermissionCard(
-            icon = if (isUsageStatsGranted) Icons.Outlined.CheckCircle else Icons.Outlined.BarChart,
+            icon = Icons.Outlined.BarChart,
             title = "Usage Access Permission",
             description = "Required to read app usage data, calculate screen time, and support wellbeing sync.",
             actionLabel = "Open Usage Access Settings",
@@ -868,7 +868,7 @@ private fun PermissionsStepContent(
         )
 
         PermissionCard(
-            icon = if (isOverlayGranted) Icons.Outlined.CheckCircle else Icons.Outlined.Layers,
+            icon = Icons.Outlined.Layers,
             title = "Display Over Other Apps",
             description = "Required to show the focus blocker screen and companion over restricted applications.",
             actionLabel = "Open Display Settings",
@@ -1175,7 +1175,7 @@ private fun PermissionCard(
             containerColor = MaterialTheme.colorScheme.surface,
         ),
         border = if (isGranted) {
-            BorderStroke(1.5.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f))
+            BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.40f))
         } else {
             BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
         },
@@ -1194,7 +1194,7 @@ private fun PermissionCard(
             ) {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = if (isGranted) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primaryContainer,
+                    color = MaterialTheme.colorScheme.primaryContainer,
                 ) {
                     Box(
                         modifier = Modifier.padding(12.dp),
@@ -1203,7 +1203,7 @@ private fun PermissionCard(
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = if (isGranted) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
+                            tint = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
@@ -1211,24 +1211,17 @@ private fun PermissionCard(
                 if (isGranted) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.35f)),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                            Icon(
-                                imageVector = Icons.Outlined.CheckCircle,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = MaterialTheme.colorScheme.secondary,
-                            )
                             Text(
-                                text = "Granted ✓",
+                                text = "Enabled",
                                 style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Bold,
                             )
                         }
@@ -1259,23 +1252,23 @@ private fun PermissionCard(
                         .height(48.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.primary,
                     ),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.35f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.30f)),
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.CheckCircle,
+                        imageVector = Icons.Outlined.Settings,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.secondary,
+                        tint = MaterialTheme.colorScheme.primary,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Permission Active (Tap to change)",
+                        text = "Manage in Settings",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        color = MaterialTheme.colorScheme.primary,
                         maxLines = 1,
                     )
                 }
@@ -1286,8 +1279,17 @@ private fun PermissionCard(
                         .fillMaxWidth()
                         .height(48.dp),
                     shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
                 ) {
-                    Text(text = actionLabel, maxLines = 1)
+                    Text(
+                        text = actionLabel,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                    )
                 }
             }
         }
@@ -1461,9 +1463,9 @@ private fun InfoNoticeCard(
     Card(
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f),
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.40f),
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.25f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)),
     ) {
         Row(
             modifier = Modifier
@@ -1473,9 +1475,9 @@ private fun InfoNoticeCard(
             verticalAlignment = Alignment.Top,
         ) {
             Icon(
-                imageVector = Icons.Outlined.WarningAmber,
+                imageVector = Icons.Outlined.Security,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.secondary,
+                tint = MaterialTheme.colorScheme.primary,
             )
 
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1483,6 +1485,7 @@ private fun InfoNoticeCard(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = description,
