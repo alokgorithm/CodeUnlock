@@ -816,9 +816,9 @@ private fun PermissionsStepContent(
             Card(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f),
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
                 ),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f)),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f)),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
@@ -837,12 +837,12 @@ private fun PermissionsStepContent(
                             text = "All Permissions Active! 🎉",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
                         )
                         Text(
                             text = "All 3 permissions detected. Tap 'Next: Select Apps ✓' below to proceed.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.85f),
                         )
                     }
                 }
@@ -1172,9 +1172,13 @@ private fun PermissionCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isGranted) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface,
+            containerColor = MaterialTheme.colorScheme.surface,
         ),
-        border = if (isGranted) BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f)) else null,
+        border = if (isGranted) {
+            BorderStroke(1.5.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f))
+        } else {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+        },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Column(
@@ -1190,7 +1194,7 @@ private fun PermissionCard(
             ) {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = if (isGranted) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+                    color = if (isGranted) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primaryContainer,
                 ) {
                     Box(
                         modifier = Modifier.padding(12.dp),
@@ -1207,8 +1211,8 @@ private fun PermissionCard(
                 if (isGranted) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f)),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.35f)),
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -1224,7 +1228,7 @@ private fun PermissionCard(
                             Text(
                                 text = "Granted ✓",
                                 style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.secondary,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 fontWeight = FontWeight.Bold,
                             )
                         }
@@ -1248,24 +1252,32 @@ private fun PermissionCard(
             }
 
             if (isGranted) {
-                OutlinedButton(
+                Button(
                     onClick = onActionClick,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.secondary,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                     ),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.35f)),
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.CheckCircle,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.secondary,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "Permission Active (Tap to change)", maxLines = 1)
+                    Text(
+                        text = "Permission Active (Tap to change)",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        maxLines = 1,
+                    )
                 }
             } else {
                 Button(
@@ -1451,6 +1463,7 @@ private fun InfoNoticeCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f),
         ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.25f)),
     ) {
         Row(
             modifier = Modifier
