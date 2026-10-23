@@ -76,9 +76,9 @@ fun FocusBuddyCard(
     Card(
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
         ),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(
@@ -188,27 +188,34 @@ fun FocusBuddyCard(
             // ── Companion Quick Actions ──────────────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Button(
                     onClick = onStartFocus,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                 ) {
                     Icon(Icons.Default.Headphones, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text(if (isFocusActive) "View Focus" else "Start Focus", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text(if (isFocusActive) "View Focus" else "Start Focus", fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                 }
 
                 OutlinedButton(
                     onClick = onSolveProblem,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                 ) {
                     Icon(Icons.Default.Code, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Solve to Unlock", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("Solve to Unlock", fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                 }
             }
         }

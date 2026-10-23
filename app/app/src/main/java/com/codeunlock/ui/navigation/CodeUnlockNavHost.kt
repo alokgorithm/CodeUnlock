@@ -1,6 +1,11 @@
 package com.codeunlock.ui.navigation
 
 import android.app.Activity
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -123,7 +128,31 @@ fun CodeUnlockNavHost(
         NavHost(
             navController = navController,
             startDestination = startDestination,
-            modifier = if (showBottomNav) Modifier.padding(innerPadding) else Modifier
+            modifier = if (showBottomNav) Modifier.padding(innerPadding) else Modifier,
+            enterTransition = {
+                slideIntoContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                    animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(320))
+            },
+            exitTransition = {
+                slideOutOfContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                    animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
+                ) + fadeOut(animationSpec = tween(220))
+            },
+            popEnterTransition = {
+                slideIntoContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.End,
+                    animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(320))
+            },
+            popExitTransition = {
+                slideOutOfContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.End,
+                    animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
+                ) + fadeOut(animationSpec = tween(220))
+            }
         ) {
             // Permissions setup — FIRST screen on fresh install (no login needed)
             composable(AppRoute.Permissions.route) {

@@ -49,40 +49,40 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF4456D9),
+    primary = Color(0xFF4361EE),
     onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFDDE1FF),
-    onPrimaryContainer = Color(0xFF101A4F),
+    primaryContainer = Color(0xFFEEF2FF),
+    onPrimaryContainer = Color(0xFF1E3A8A),
 
-    secondary = Color(0xFF006B5B),
+    secondary = Color(0xFF10B981),
     onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFB7F6E9),
-    onSecondaryContainer = Color(0xFF00201A),
+    secondaryContainer = Color(0xFFE6F4EA),
+    onSecondaryContainer = Color(0xFF065F46),
 
-    tertiary = Color(0xFF9A5B00),
+    tertiary = Color(0xFFF59E0B),
     onTertiary = Color(0xFFFFFFFF),
-    tertiaryContainer = Color(0xFFFFDEBB),
-    onTertiaryContainer = Color(0xFF311A00),
+    tertiaryContainer = Color(0xFFFEF3C7),
+    onTertiaryContainer = Color(0xFF78350F),
 
-    error = Color(0xFFBA1A1A),
+    error = Color(0xFFEF4444),
     onError = Color(0xFFFFFFFF),
-    errorContainer = Color(0xFFFFDAD6),
-    onErrorContainer = Color(0xFF410002),
+    errorContainer = Color(0xFFFEE2E2),
+    onErrorContainer = Color(0xFF991B1B),
 
-    background = Color(0xFFF7F8FC),
-    onBackground = Color(0xFF161B2B),
+    background = Color(0xFFF8FAFC),
+    onBackground = Color(0xFF0F172A),
     surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF161B2B),
-    surfaceVariant = Color(0xFFE1E6F3),
-    onSurfaceVariant = Color(0xFF444C63),
+    onSurface = Color(0xFF0F172A),
+    surfaceVariant = Color(0xFFF1F5F9),
+    onSurfaceVariant = Color(0xFF475569),
 
-    outline = Color(0xFF747D96),
-    outlineVariant = Color(0xFFC4CADB),
+    outline = Color(0xFF94A3B8),
+    outlineVariant = Color(0xFFE2E8F0),
     scrim = Color(0x99000000),
 
-    inverseSurface = Color(0xFF2A3042),
-    inverseOnSurface = Color(0xFFF1F3FA),
-    inversePrimary = Color(0xFFBBC3FF)
+    inverseSurface = Color(0xFF1E293B),
+    inverseOnSurface = Color(0xFFF8FAFC),
+    inversePrimary = Color(0xFF93C5FD)
 )
 
 @Composable

@@ -35,7 +35,7 @@ object BlockingSettingsStore {
     const val THEME_LIGHT = "light"
     const val THEME_DARK = "dark"
 
-    val themeModeFlow = MutableStateFlow(THEME_SYSTEM)
+    val themeModeFlow = MutableStateFlow(THEME_LIGHT)
     private var isThemeInitialized = false
 
     fun initThemeMode(context: Context) {
@@ -48,7 +48,7 @@ object BlockingSettingsStore {
 
     fun getThemeMode(context: Context): String {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getString(KEY_THEME_MODE, THEME_SYSTEM) ?: THEME_SYSTEM
+        return prefs.getString(KEY_THEME_MODE, THEME_LIGHT) ?: THEME_LIGHT
     }
 
     fun setThemeMode(context: Context, mode: String) {
@@ -76,7 +76,7 @@ object BlockingSettingsStore {
         val lastSavedAt: Long = 0L,
         val leetcodeUsername: String? = null,
         val codeforcesHandle: String? = null,
-        val themeMode: String = THEME_SYSTEM
+        val themeMode: String = THEME_LIGHT
     ) {
         val hasRestrictedApps: Boolean
             get() = restrictedApps.isNotEmpty()
@@ -113,7 +113,7 @@ object BlockingSettingsStore {
             lastSavedAt = prefs.getLong(KEY_LAST_SAVED_AT, 0L),
             leetcodeUsername = prefs.getString(KEY_LEETCODE_USERNAME, null)?.takeIf { it.isNotBlank() },
             codeforcesHandle = prefs.getString(KEY_CODEFORCES_HANDLE, null)?.takeIf { it.isNotBlank() },
-            themeMode = prefs.getString(KEY_THEME_MODE, THEME_SYSTEM) ?: THEME_SYSTEM
+            themeMode = prefs.getString(KEY_THEME_MODE, THEME_LIGHT) ?: THEME_LIGHT
         )
     }
 

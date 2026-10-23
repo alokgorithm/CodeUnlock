@@ -1,6 +1,7 @@
 package com.codeunlock.ui.screens.permissions
 
 import android.content.Intent
+import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,6 +29,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.WarningAmber
@@ -326,6 +329,7 @@ fun PermissionSetupRoute(
 
     var isAccessibilityGranted by remember { mutableStateOf(isAccessibilityPermissionGranted(context)) }
     var isUsageStatsGranted by remember { mutableStateOf(isUsageStatsPermissionGranted(context)) }
+    var isOverlayGranted by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -333,6 +337,7 @@ fun PermissionSetupRoute(
             if (event == Lifecycle.Event.ON_RESUME) {
                 isAccessibilityGranted = isAccessibilityPermissionGranted(context)
                 isUsageStatsGranted = isUsageStatsPermissionGranted(context)
+                isOverlayGranted = Settings.canDrawOverlays(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -452,11 +457,29 @@ fun PermissionSetupRoute(
         isSaving = syncState.isSaving,
         isAccessibilityGranted = isAccessibilityGranted,
         isUsageStatsGranted = isUsageStatsGranted,
+        isOverlayGranted = isOverlayGranted,
         onOpenAccessibilitySettings = {
             context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         },
         onOpenUsageAccessSettings = {
             context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+        },
+        onOpenOverlaySettings = {
+            try {
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:${context.packageName}")
+                )
+                context.startActivity(intent)
+            } catch (_: Exception) {
+                try {
+                    context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION))
+                } catch (e: Exception) {
+                    scope.launch {
+                        snackbarHostState.showSnackbar("Unable to open display overlay settings.")
+                    }
+                }
+            }
         },
         onBack = {
             moveBack()
@@ -494,8 +517,10 @@ private fun PermissionSetupScreen(
     isSaving: Boolean,
     isAccessibilityGranted: Boolean,
     isUsageStatsGranted: Boolean,
+    isOverlayGranted: Boolean,
     onOpenAccessibilitySettings: () -> Unit,
     onOpenUsageAccessSettings: () -> Unit,
+    onOpenOverlaySettings: () -> Unit,
     onBack: () -> Unit,
     onNext: () -> Unit,
     snackbarHostState: SnackbarHostState,
@@ -503,7 +528,7 @@ private fun PermissionSetupScreen(
 ) {
     val nextButtonLabel = when (step) {
         OnboardingStep.Permissions ->
-            if (isAccessibilityGranted && isUsageStatsGranted) "Next: Select Apps ✓" else "Next: Select Apps"
+            if (isAccessibilityGranted && isUsageStatsGranted && isOverlayGranted) "Next: Select Apps ✓" else "Next: Select Apps"
         OnboardingStep.RestrictApps -> "Next: Choose Mode"
         OnboardingStep.ModeAndTarget -> "Next: Link Accounts"
         OnboardingStep.LinkAccounts -> "Next: Review Settings"
@@ -555,8 +580,10 @@ private fun PermissionSetupScreen(
                 OnboardingStep.Permissions -> PermissionsStepContent(
                     isAccessibilityGranted = isAccessibilityGranted,
                     isUsageStatsGranted = isUsageStatsGranted,
+                    isOverlayGranted = isOverlayGranted,
                     onOpenAccessibilitySettings = onOpenAccessibilitySettings,
                     onOpenUsageAccessSettings = onOpenUsageAccessSettings,
+                    onOpenOverlaySettings = onOpenOverlaySettings,
                 )
 
                 OnboardingStep.RestrictApps -> RestrictAppsStepContent(
@@ -605,26 +632,38 @@ private fun PermissionSetupScreen(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (step != OnboardingStep.Permissions) {
                     OutlinedButton(
                         onClick = onBack,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(18.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(54.dp),
+                        shape = RoundedCornerShape(16.dp),
                         enabled = !isSaving,
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
                     ) {
-                        Text("Back")
+                        Text(
+                            text = "Back",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                        )
                     }
                 }
 
                 Button(
                     onClick = onNext,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(54.dp),
+                    shape = RoundedCornerShape(16.dp),
                     enabled = !isSaving,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                     ),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
                 ) {
                     if (isSaving) {
                         CircularProgressIndicator(
@@ -637,6 +676,8 @@ private fun PermissionSetupScreen(
                     Text(
                         text = nextButtonLabel,
                         style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
                     )
                 }
             }
@@ -763,11 +804,15 @@ private fun SetupHeader(
 private fun PermissionsStepContent(
     isAccessibilityGranted: Boolean,
     isUsageStatsGranted: Boolean,
+    isOverlayGranted: Boolean,
     onOpenAccessibilitySettings: () -> Unit,
     onOpenUsageAccessSettings: () -> Unit,
+    onOpenOverlaySettings: () -> Unit,
 ) {
+    val allPermissionsGranted = isAccessibilityGranted && isUsageStatsGranted && isOverlayGranted
+
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        if (isAccessibilityGranted && isUsageStatsGranted) {
+        if (allPermissionsGranted) {
             Card(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(
@@ -795,7 +840,7 @@ private fun PermissionsStepContent(
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
-                            text = "Both permissions detected. Tap 'Next: Select Apps ✓' below to proceed.",
+                            text = "All 3 permissions detected. Tap 'Next: Select Apps ✓' below to proceed.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -820,6 +865,15 @@ private fun PermissionsStepContent(
             actionLabel = "Open Usage Access Settings",
             onActionClick = onOpenUsageAccessSettings,
             isGranted = isUsageStatsGranted,
+        )
+
+        PermissionCard(
+            icon = if (isOverlayGranted) Icons.Outlined.CheckCircle else Icons.Outlined.Layers,
+            title = "Display Over Other Apps",
+            description = "Required to show the focus blocker screen and companion over restricted applications.",
+            actionLabel = "Open Display Settings",
+            onActionClick = onOpenOverlaySettings,
+            isGranted = isOverlayGranted,
         )
 
         InfoNoticeCard(
@@ -1196,7 +1250,9 @@ private fun PermissionCard(
             if (isGranted) {
                 OutlinedButton(
                     onClick = onActionClick,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.secondary,
@@ -1209,15 +1265,17 @@ private fun PermissionCard(
                         modifier = Modifier.size(18.dp),
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "Permission Active (Tap to change)")
+                    Text(text = "Permission Active (Tap to change)", maxLines = 1)
                 }
             } else {
                 Button(
                     onClick = onActionClick,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
                     shape = RoundedCornerShape(16.dp),
                 ) {
-                    Text(text = actionLabel)
+                    Text(text = actionLabel, maxLines = 1)
                 }
             }
         }
